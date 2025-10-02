@@ -20,7 +20,7 @@ build/
 .gradle/
 gradle-app.setting
 !gradle-wrapper.jar
-
+.claude
 # Local configuration file (sdk path, etc)
 local.properties
 
