@@ -1,0 +1,14 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.compile.nullAnalysis.mode": "automatic",
+    "files.exclude": {
+        "**/.gradle": true,
+        "**/build": true,
+        "**/.idea": true
+    },
+    "files.associations": {
+        "*.gradle.kts": "kotlin"
+    },
+    "editor.formatOnSave": true,
+    "kotlin.languageServer.enabled": true
+}
