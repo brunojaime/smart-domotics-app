@@ -23,7 +23,7 @@ class PairingServiceImpl(private val client: PairingClient) : PairingService {
                     name = device.name,
                     status = DeviceStatus.OFF,
                     brightness = 0,
-                    isOn = false,
+                    poweredOn = false,
                 )
                 PairingState.Success(pairedDevice)
             } else {

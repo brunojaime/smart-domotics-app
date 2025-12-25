@@ -9,17 +9,17 @@ class Sensor(
     status: DeviceStatus = DeviceStatus.OFFLINE,
     val sensorType: SensorType,
     private var currentValue: Double = 0.0
-) : Device(id, name, status) {
+) : Device(id, name, status), Measurable<Double> {
 
     /**
      * Get current sensor reading
      */
-    fun getCurrentValue(): Double = currentValue
+    override fun getCurrentValue(): Double = currentValue
 
     /**
      * Update sensor reading and notify subscribers
      */
-    fun updateValue(newValue: Double) {
+    override fun updateValue(newValue: Double) {
         if (currentValue != newValue) {
             currentValue = newValue
             notifySubscribers()

@@ -101,7 +101,7 @@ class DeviceViewModel(
                 name = name,
                 status = DeviceStatus.OFF,
                 brightness = 0,
-                isOn = false,
+                poweredOn = false,
             )
             val deviceState = DeviceState(
                 device = newDevice,
