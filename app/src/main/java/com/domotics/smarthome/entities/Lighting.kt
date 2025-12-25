@@ -8,8 +8,8 @@ class Lighting(
     name: String,
     status: DeviceStatus = DeviceStatus.OFFLINE,
     private var brightness: Int = 0,
-    private var isOn: Boolean = false
-) : Device(id, name, status) {
+    private var poweredOn: Boolean = false
+) : Device(id, name, status), Switchable, Dimmable {
 
     init {
         require(brightness in 0..100) { "Brightness must be between 0 and 100" }
@@ -18,22 +18,22 @@ class Lighting(
     /**
      * Get current brightness level
      */
-    fun getBrightness(): Int = brightness
+    override fun getBrightness(): Int = brightness
 
     /**
      * Set brightness level and notify subscribers
      */
-    fun setBrightness(level: Int) {
+    override fun setBrightness(level: Int) {
         require(level in 0..100) { "Brightness must be between 0 and 100" }
         if (brightness != level) {
             brightness = level
             if (level > 0) {
-                isOn = true
+                poweredOn = true
                 if (status != DeviceStatus.ON) {
                     updateStatus(DeviceStatus.ON)
                 }
             } else {
-                isOn = false
+                poweredOn = false
                 if (status == DeviceStatus.ON) {
                     updateStatus(DeviceStatus.OFF)
                 }
@@ -45,14 +45,16 @@ class Lighting(
     /**
      * Check if light is on
      */
-    fun isLightOn(): Boolean = isOn
+    fun isLightOn(): Boolean = poweredOn
+
+    override fun isOn(): Boolean = poweredOn
 
     /**
      * Turn light on with last brightness or default to 100
      */
-    fun turnOn() {
-        if (!isOn) {
-            isOn = true
+    override fun turnOn() {
+        if (!poweredOn) {
+            poweredOn = true
             if (brightness == 0) {
                 brightness = 100
             }
@@ -63,15 +65,15 @@ class Lighting(
     /**
      * Turn light off
      */
-    fun turnOff() {
-        if (isOn) {
-            isOn = false
+    override fun turnOff() {
+        if (poweredOn) {
+            poweredOn = false
             brightness = 0
             updateStatus(DeviceStatus.OFF)
         }
     }
 
     override fun toString(): String {
-        return "Lighting(id='$id', name='$name', status=$status, brightness=$brightness, isOn=$isOn)"
+        return "Lighting(id='$id', name='$name', status=$status, brightness=$brightness, isOn=$poweredOn)"
     }
 }
