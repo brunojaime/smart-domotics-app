@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.domotics.smarthome.notifications.NotificationViewModel
 import com.domotics.smarthome.data.device.DiscoveredDevice
 import com.domotics.smarthome.data.device.DiscoveryState
 import com.domotics.smarthome.data.device.PairingState
@@ -26,9 +29,20 @@ import com.domotics.smarthome.viewmodel.DeviceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DeviceListScreen(viewModel: DeviceViewModel) {
+fun DeviceListScreen(
+    viewModel: DeviceViewModel,
+    notificationViewModel: NotificationViewModel,
+) {
     val devices by viewModel.devices.collectAsState()
     val showAddFlow = remember { mutableStateOf(false) }
+    val notification by notificationViewModel.currentNotification
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(notification) {
+        notification?.let {
+            snackbarHostState.showSnackbar("Notification received: ${it.title}")
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -41,6 +55,7 @@ fun DeviceListScreen(viewModel: DeviceViewModel) {
                 text = { Text("Add device") },
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -48,6 +63,18 @@ fun DeviceListScreen(viewModel: DeviceViewModel) {
                 .padding(paddingValues)
                 .padding(16.dp),
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                AssistChip(
+                    onClick = { notificationViewModel.simulateExternalNotification() },
+                    label = { Text(text = "Test notification adapter") },
+                )
+            }
+
             if (devices.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No devices yet. Tap + to add one!", style = MaterialTheme.typography.bodyLarge)
@@ -76,6 +103,24 @@ fun DeviceListScreen(viewModel: DeviceViewModel) {
             onPaired = {
                 viewModel.resetDiscovery()
                 showAddFlow.value = false
+            },
+        )
+    }
+
+    notification?.let { message ->
+        AlertDialog(
+            onDismissRequest = notificationViewModel::dismissNotification,
+            title = { Text(message.title) },
+            text = { Text(message.body) },
+            confirmButton = {
+                TextButton(onClick = notificationViewModel::dismissNotification) {
+                    Text("Open app")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = notificationViewModel::dismissNotification) {
+                    Text("Later")
+                }
             },
         )
     }
@@ -252,5 +297,9 @@ private fun PairingStatus(pairingState: PairingState) {
 @Preview
 @Composable
 private fun DeviceListPreview() {
-    SmartDomoticsTheme { DeviceListScreen(DeviceViewModel()) }
+    SmartDomoticsTheme {
+        val deviceViewModel: DeviceViewModel = viewModel()
+        val notificationViewModel: NotificationViewModel = viewModel()
+        DeviceListScreen(deviceViewModel, notificationViewModel)
+    }
 }

@@ -8,9 +8,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.domotics.smarthome.notifications.NotificationViewModel
 import com.domotics.smarthome.ui.theme.SmartDomoticsTheme
 import com.domotics.smarthome.ui.devices.DeviceListScreen
 import com.domotics.smarthome.viewmodel.DeviceViewModel
@@ -33,8 +34,14 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DomoticsApp(viewModel: DeviceViewModel = viewModel()) {
-    DeviceListScreen(viewModel = viewModel)
+fun DomoticsApp(
+    viewModel: DeviceViewModel = viewModel(),
+    notificationViewModel: NotificationViewModel = viewModel()
+) {
+    DeviceListScreen(
+        viewModel = viewModel,
+        notificationViewModel = notificationViewModel
+    )
 }
 
 @Preview(showBackground = true)
