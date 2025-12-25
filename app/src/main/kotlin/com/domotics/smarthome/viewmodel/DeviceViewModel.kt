@@ -2,6 +2,7 @@ package com.domotics.smarthome.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.mutableStateOf
 import com.domotics.smarthome.data.device.DeviceDiscoveryRepository
 import com.domotics.smarthome.data.device.DeviceDiscoveryRepositoryImpl
 import com.domotics.smarthome.data.device.DiscoveredDevice
@@ -17,6 +18,16 @@ import com.domotics.smarthome.data.device.PairingState
 import com.domotics.smarthome.entities.Device
 import com.domotics.smarthome.entities.DeviceStatus
 import com.domotics.smarthome.entities.Lighting
+import com.domotics.smarthome.provisioning.BluetoothProvisioningStrategy
+import com.domotics.smarthome.provisioning.DiscoveryMetadata
+import com.domotics.smarthome.provisioning.OnboardingCodeProvisioningStrategy
+import com.domotics.smarthome.provisioning.ProvisioningProgress
+import com.domotics.smarthome.provisioning.ProvisioningResult
+import com.domotics.smarthome.provisioning.ProvisioningStrategy
+import com.domotics.smarthome.provisioning.ProvisioningStrategySummary
+import com.domotics.smarthome.provisioning.ProvisioningViewState
+import com.domotics.smarthome.provisioning.SoftApProvisioningStrategy
+import com.domotics.smarthome.provisioning.WifiCredentials
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,6 +70,31 @@ class DeviceViewModel(
 
     private var discoveryJob: Job? = null
 
+    private val provisioningStrategies: List<ProvisioningStrategy> = listOf(
+        SoftApProvisioningStrategy(),
+        BluetoothProvisioningStrategy(),
+        OnboardingCodeProvisioningStrategy()
+    )
+
+    private val _provisioningState = mutableStateOf(ProvisioningViewState())
+    val provisioningState = _provisioningState
+
+    private var provisioningJob: Job? = null
+    private var lastDiscoveryMetadata: DiscoveryMetadata? = null
+
+    init {
+        updateDiscovery(
+            DiscoveryMetadata(
+                deviceSsid = "SmartBulb-Setup",
+                supportsSoftAp = true,
+                supportsBluetoothFallback = true,
+                supportsOnboardingCode = true,
+                expectedWifiPassword = "password123",
+                respondsToHeartbeat = true
+            )
+        )
+    }
+
     fun addDevice(name: String) {
         if (name.isNotBlank()) {
             val newDevice = Lighting(
@@ -74,6 +110,60 @@ class DeviceViewModel(
                 status = DeviceStatus.OFF,
             )
             _devices.value = _devices.value + deviceState
+        }
+    }
+
+    fun updateDiscovery(metadata: DiscoveryMetadata) {
+        lastDiscoveryMetadata = metadata
+        val available = provisioningStrategies.filter { it.supports(metadata) }
+        val summaries = available.map { it.toSummary() }
+        _provisioningState.value = _provisioningState.value.copy(
+            availableStrategies = summaries,
+            selectedStrategy = summaries.firstOrNull(),
+            progress = null,
+            lastResult = null
+        )
+    }
+
+    fun selectProvisioningStrategy(strategyId: String) {
+        val selected = _provisioningState.value.availableStrategies.firstOrNull { it.id == strategyId }
+        if (selected != null) {
+            _provisioningState.value = _provisioningState.value.copy(
+                selectedStrategy = selected,
+                lastResult = null
+            )
+        }
+    }
+
+    fun cancelProvisioning() {
+        provisioningJob?.cancel()
+        provisioningStrategies.forEach { it.cancel() }
+        _provisioningState.value = _provisioningState.value.copy(
+            progress = null,
+            lastResult = ProvisioningResult.Cancelled()
+        )
+    }
+
+    fun provisionSelectedStrategy(credentials: WifiCredentials) {
+        val metadata = lastDiscoveryMetadata ?: return
+        val selectedStrategyId = _provisioningState.value.selectedStrategy?.id ?: return
+        val strategy = provisioningStrategies.firstOrNull { it.id == selectedStrategyId } ?: return
+
+        provisioningJob?.cancel()
+        _provisioningState.value = _provisioningState.value.copy(
+            progress = ProvisioningProgress.ConnectingToDeviceAp,
+            lastResult = null
+        )
+
+        provisioningJob = viewModelScope.launch {
+            val result = strategy.provision(metadata, credentials) { progress ->
+                _provisioningState.value = _provisioningState.value.copy(progress = progress)
+            }
+
+            _provisioningState.value = _provisioningState.value.copy(
+                progress = null,
+                lastResult = result
+            )
         }
     }
 
@@ -152,3 +242,10 @@ class DeviceViewModel(
         }
     }
 }
+
+private fun ProvisioningStrategy.toSummary(): ProvisioningStrategySummary =
+    ProvisioningStrategySummary(
+        id = id,
+        name = name,
+        requiredUserAction = requiredUserAction
+    )
