@@ -47,16 +47,47 @@ An Android application for smart home and industrial automation control, built w
 smart-domotics-app/
 ├── app/
 │   ├── src/
-│   │   └── main/
-│   │       ├── kotlin/com/domotics/smarthome/
-│   │       │   ├── MainActivity.kt
-│   │       │   └── ui/theme/
-│   │       ├── res/
-│   │       └── AndroidManifest.xml
+│   │   ├── main/
+│   │   │   └── java/com/domotics/smarthome/
+│   │   │       └── entities/
+│   │   │           ├── Location.kt
+│   │   │           ├── Building.kt
+│   │   │           ├── Zone.kt
+│   │   │           ├── Area.kt
+│   │   │           ├── Device.kt (abstract)
+│   │   │           ├── Lighting.kt
+│   │   │           └── Sensor.kt
+│   │   └── test/
+│   │       └── java/com/domotics/smarthome/
+│   │           └── entities/
+│   │               ├── LocationTest.kt
+│   │               ├── BuildingTest.kt
+│   │               ├── ZoneTest.kt
+│   │               ├── AreaTest.kt
+│   │               └── DeviceTest.kt
 │   └── build.gradle.kts
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
+
+## Architecture
+
+### Domain Entities
+
+The app follows a domain-driven design with the following core entities:
+
+- **Location**: Geographical coordinates (latitude, longitude) with optional reference
+- **Building**: Top-level entity containing zones, with a name, location, and description
+- **Zone**: Represents floors or areas within a building, contains devices
+- **Area**: Defines physical spaces with optional square meters measurement
+- **Device** (abstract): Base class implementing publisher/subscriber pattern for device state changes
+  - **Lighting**: Controls brightness (0-100) and on/off state
+  - **Sensor**: Monitors various metrics (temperature, humidity, motion, etc.)
+
+All entities include:
+- UUID-based identification
+- Input validation
+- Comprehensive unit test coverage (54 tests)
 
 ## Permissions
 
@@ -85,6 +116,9 @@ The app requests the following permissions for IoT functionality:
 
 # Release build
 ./gradlew assembleRelease
+
+# Run tests
+./gradlew test
 ```
 
 ## License
