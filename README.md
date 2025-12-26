@@ -165,6 +165,11 @@ To run the app on a real phone, make sure the backend and broker are reachable o
    adb install -r app/build/outputs/apk/debug/app-debug.apk
    ```
 
+## Additional documentation
+
+- [Device provisioning architecture tasks (strategy + adapter)](docs/device-provisioning-architecture-tasks.md)
+- [Device provisioning architecture (implementation overview)](docs/device-provisioning-architecture.md)
+
 ## License
 
 TBD

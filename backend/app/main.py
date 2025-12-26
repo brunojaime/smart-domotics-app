@@ -20,7 +20,7 @@ from .models import (
     User,
 )
 from .repositories.device_repository import DeviceRepository, InMemoryDeviceRepository
-from .routers import areas, buildings, locations, zone_devices, zones
+from .routers import areas, buildings, locations, provisioning, zone_devices, zones
 from .services.hivemq_client import build_mqtt_credentials, device_topics
 
 security = HTTPBearer(auto_error=False)
@@ -103,6 +103,7 @@ app.include_router(buildings.router, prefix=api_prefix)
 app.include_router(zones.router, prefix=api_prefix)
 app.include_router(areas.router, prefix=api_prefix)
 app.include_router(zone_devices.router, prefix=api_prefix)
+app.include_router(provisioning.router, prefix=api_prefix)
 
 
 @app.get("/healthz")

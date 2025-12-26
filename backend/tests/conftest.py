@@ -8,6 +8,7 @@ from httpx import ASGITransport
 
 from backend.app.container import reset_repositories
 from backend.app.store import device_store
+from backend.app.provisioning.registry import registry as provisioning_registry
 
 
 def _env_values() -> Dict[str, str]:
@@ -78,6 +79,7 @@ def reset_state(fastapi_app) -> None:
     yield
     device_store.clear()
     reset_repositories()
+    provisioning_registry.reset()
     repository = getattr(fastapi_app.state, "device_repository", None)
     if repository and hasattr(repository, "clear"):
         repository.clear()
