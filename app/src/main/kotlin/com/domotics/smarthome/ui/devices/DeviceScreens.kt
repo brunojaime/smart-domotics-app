@@ -36,7 +36,6 @@ fun DeviceListScreen(
     modifier: Modifier = Modifier,
     showTopBar: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(),
-    enableProvisioning: Boolean = false,
 ) {
     val devices by viewModel.devices.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
@@ -58,13 +57,11 @@ fun DeviceListScreen(
             }
         },
         floatingActionButton = {
-            if (enableProvisioning) {
-                ExtendedFloatingActionButton(
-                    onClick = { showAddFlow.value = true },
-                    icon = { Icon(Icons.Default.Add, contentDescription = "Add device") },
-                    text = { Text("Add device") },
-                )
-            }
+            ExtendedFloatingActionButton(
+                onClick = { showAddFlow.value = true },
+                icon = { Icon(Icons.Default.Add, contentDescription = "Add device") },
+                text = { Text("Add device") },
+            )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { paddingValues ->
@@ -110,7 +107,7 @@ fun DeviceListScreen(
         }
     }
 
-    if (enableProvisioning && showAddFlow.value) {
+    if (showAddFlow.value) {
         AddDeviceFlowDialog(
             viewModel = viewModel,
             onDismiss = {
