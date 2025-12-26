@@ -1,26 +1,20 @@
-from .settings import AppSettings as Settings, settings
+import json
+from typing import Dict, List
 
-__all__ = ["Settings", "settings"]
 from pydantic import BaseSettings, Field, validator
 
 
-class Settings(BaseSettings):
+class AppSettings(BaseSettings):
+    database_backend: str = Field("memory", env="APP_DATABASE_BACKEND")
     app_token_prefix: str = Field("user_", env="APP_TOKEN_PREFIX")
-    user_repository_backend: str = Field("memory", env="USER_REPOSITORY")
     jwt_secret: str = Field("dev_super_secret_change_later", env="APP_JWT_SECRET")
-    jwt_algorithm: str = Field("HS256", env="APP_JWT_ALGORITHM")
-    access_token_expire_minutes: int = Field(30, env="APP_ACCESS_TOKEN_EXPIRE_MINUTES")
-    refresh_token_expire_minutes: int = Field(60 * 24 * 14, env="APP_REFRESH_TOKEN_EXPIRE_MINUTES")
-    google_client_id: str = Field("", env="GOOGLE_CLIENT_ID")
-    google_client_secret: str = Field("", env="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str = Field("http://localhost:8000/api/auth/google/callback", env="GOOGLE_REDIRECT_URI")
+    jwt_expiry_seconds: int = Field(3600, env="APP_JWT_EXPIRY_SECONDS")
+    oauth_client_ids: Dict[str, str] = Field(default_factory=dict, env="APP_OAUTH_CLIENT_IDS")
     hivemq_host: str = Field("localhost", env="HIVEMQ_HOST")
     hivemq_port: int = Field(1883, env="HIVEMQ_PORT")
     hivemq_username: str = Field("local_backend", env="HIVEMQ_USERNAME")
     hivemq_password: str = Field("local_backend_password", env="HIVEMQ_PASSWORD")
     mqtt_credentials_ttl: int = Field(86400, env="MQTT_CREDENTIALS_TTL")
-    storage_backend: str = Field("memory", env="STORAGE_BACKEND")
-    sqlite_db_path: str = Field("./data/domotics.sqlite", env="SQLITE_DB_PATH")
     cors_allowed_origins: List[str] = Field(
         ["http://localhost:3000", "http://localhost:5173"], env="CORS_ALLOWED_ORIGINS"
     )
@@ -29,6 +23,16 @@ class Settings(BaseSettings):
     def split_origins(cls, value: str | List[str]) -> List[str]:
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @validator("oauth_client_ids", pre=True, allow_reuse=True)
+    def parse_oauth_client_ids(cls, value: str | Dict[str, str]) -> Dict[str, str]:
+        if isinstance(value, str):
+            if not value.strip():
+                return {}
+            if value.strip().startswith("{"):
+                return json.loads(value)
+            return dict(item.split(":", 1) for item in value.split(",") if ":" in item)
         return value
 
     class Config:
@@ -41,7 +45,14 @@ class Settings(BaseSettings):
                 if raw_val.strip().startswith("["):
                     return json.loads(raw_val)
                 return [origin.strip() for origin in raw_val.split(",") if origin.strip()]
+            if field_name == "oauth_client_ids":
+                if raw_val.strip().startswith("{"):
+                    return json.loads(raw_val)
+                return dict(item.split(":", 1) for item in raw_val.split(",") if ":" in item)
             return cls.json_loads(raw_val)
 
 
+Settings = AppSettings
 settings = Settings()
+
+__all__ = ["AppSettings", "Settings", "settings"]
