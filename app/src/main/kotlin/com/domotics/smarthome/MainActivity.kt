@@ -220,6 +220,7 @@ fun DomoticsApp(
                             notificationViewModel = notificationViewModel,
                             showTopBar = false,
                             contentPadding = innerPadding,
+                            enableProvisioning = false,
                         )
 
                         AppDestination.Buildings -> Box(modifier = Modifier.padding(innerPadding)) {
