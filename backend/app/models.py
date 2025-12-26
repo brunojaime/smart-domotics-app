@@ -38,3 +38,56 @@ class MQTTCredentialsResponse(BaseModel):
     client_id: str
     topics: List[str]
     expires_in_seconds: int
+
+
+class Location(BaseModel):
+    id: str
+    name: str
+
+
+class LocationCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class LocationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
+class LocationResponse(Location):
+    pass
+
+
+class Building(BaseModel):
+    id: str
+    name: str
+    location_id: str
+
+
+class BuildingCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class BuildingUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
+class BuildingResponse(Building):
+    pass
+
+
+class Room(BaseModel):
+    id: str
+    name: str
+    building_id: str
+
+
+class RoomCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class RoomUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
+class RoomResponse(Room):
+    pass

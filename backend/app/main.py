@@ -11,6 +11,7 @@ from .models import (
     User,
 )
 from .services.hivemq_client import build_mqtt_credentials, device_topics
+from .routers import buildings, locations, rooms
 from .store import device_store
 
 security = HTTPBearer(auto_error=False)
@@ -23,6 +24,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+api_prefix = "/api/v1"
+
+app.include_router(locations.router, prefix=api_prefix)
+app.include_router(buildings.router, prefix=api_prefix)
+app.include_router(rooms.router, prefix=api_prefix)
 
 
 async def get_current_user(
