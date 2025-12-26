@@ -105,7 +105,7 @@ class DtoMappingTest {
             )
         )
         assertEquals("Cold Storage", updatedZone.name)
-        assertEquals(45.0, updatedZone.area.squareMeters, 0.0)
+        assertEquals(45.0, requireNotNull(updatedZone.area.squareMeters), 0.0)
         assertEquals(zone.floor, updatedZone.floor)
     }
 

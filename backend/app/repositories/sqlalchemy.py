@@ -84,6 +84,16 @@ class SQLiteLocationRepository(LocationRepository):
             )
             return [self._to_entity(loc) for loc in session.execute(stmt).scalars().all()]
 
+    def update(self, location: Location) -> Location:
+        with self._session_factory() as session:
+            model = session.get(LocationModel, location.id)
+            if model is None:
+                raise KeyError("Location not found")
+            model.name = location.name
+            session.commit()
+            session.refresh(model)
+            return self._to_entity(model)
+
     def delete(self, location_id: str) -> None:
         with self._session_factory() as session:
             location = session.get(LocationModel, location_id)
@@ -131,6 +141,16 @@ class SQLiteBuildingRepository(BuildingRepository):
             )
             return [self._to_entity(building) for building in session.execute(stmt).scalars().all()]
 
+    def update(self, building: Building) -> Building:
+        with self._session_factory() as session:
+            model = session.get(BuildingModel, building.id)
+            if model is None:
+                raise KeyError("Building not found")
+            model.name = building.name
+            session.commit()
+            session.refresh(model)
+            return self._to_entity(model)
+
     def delete(self, building_id: str) -> None:
         with self._session_factory() as session:
             building = session.get(BuildingModel, building_id)
@@ -177,6 +197,16 @@ class SQLiteZoneRepository(ZoneRepository):
             stmt = select(ZoneModel).options(selectinload(ZoneModel.areas)).where(ZoneModel.building_id == building_id)
             return [self._to_entity(zone) for zone in session.execute(stmt).scalars().all()]
 
+    def update(self, zone: Zone) -> Zone:
+        with self._session_factory() as session:
+            model = session.get(ZoneModel, zone.id)
+            if model is None:
+                raise KeyError("Zone not found")
+            model.name = zone.name
+            session.commit()
+            session.refresh(model)
+            return self._to_entity(model)
+
     def delete(self, zone_id: str) -> None:
         with self._session_factory() as session:
             zone = session.get(ZoneModel, zone_id)
@@ -221,6 +251,16 @@ class SQLiteAreaRepository(AreaRepository):
         with self._session_factory() as session:
             stmt = select(AreaModel).where(AreaModel.zone_id == zone_id)
             return [Area(id=a.id, name=a.name, zone_id=a.zone_id) for a in session.execute(stmt).scalars().all()]
+
+    def update(self, area: Area) -> Area:
+        with self._session_factory() as session:
+            model = session.get(AreaModel, area.id)
+            if model is None:
+                raise KeyError("Area not found")
+            model.name = area.name
+            session.commit()
+            session.refresh(model)
+            return Area(id=model.id, name=model.name, zone_id=model.zone_id)
 
     def delete(self, area_id: str) -> None:
         with self._session_factory() as session:

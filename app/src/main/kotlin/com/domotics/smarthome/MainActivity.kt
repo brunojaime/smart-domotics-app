@@ -5,9 +5,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -25,9 +26,6 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -39,49 +37,41 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.domotics.smarthome.notifications.NotificationViewModel
+import com.domotics.smarthome.ui.auth.LoginScreen
+import com.domotics.smarthome.ui.auth.RegisterScreen
 import com.domotics.smarthome.ui.devices.DeviceListScreen
 import com.domotics.smarthome.ui.home.AuthGate
-import com.domotics.smarthome.ui.home.AuthenticationScreen
 import com.domotics.smarthome.ui.home.CrudManagementScreen
 import com.domotics.smarthome.ui.home.ProfileScreen
 import com.domotics.smarthome.ui.theme.SmartDomoticsTheme
 import com.domotics.smarthome.viewmodel.AppDestination
 import com.domotics.smarthome.viewmodel.AppViewModel
-import com.domotics.smarthome.viewmodel.DeviceViewModel
-import com.domotics.smarthome.viewmodel.ManagedSection
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.domotics.smarthome.notifications.NotificationViewModel
-import com.domotics.smarthome.ui.auth.LoginScreen
-import com.domotics.smarthome.ui.auth.RegisterScreen
-import com.domotics.smarthome.ui.devices.DeviceListScreen
-import com.domotics.smarthome.ui.theme.SmartDomoticsTheme
 import com.domotics.smarthome.viewmodel.AuthViewModel
 import com.domotics.smarthome.viewmodel.AuthViewModelFactory
 import com.domotics.smarthome.viewmodel.DeviceViewModel
 import com.domotics.smarthome.viewmodel.DeviceViewModelFactory
+import com.domotics.smarthome.viewmodel.ManagedSection
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import kotlinx.coroutines.launch
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels { AuthViewModelFactory(applicationContext) }
@@ -95,8 +85,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             SmartDomoticsTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    modifier = Modifier,
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     DomoticsApp(
                         authViewModel = authViewModel,
@@ -108,21 +98,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        authViewModel.handleOAuthRedirect(intent?.data)
+        authViewModel.handleOAuthRedirect(intent.data)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DomoticsApp(
-    viewModel: DeviceViewModel = viewModel(),
-    notificationViewModel: NotificationViewModel = viewModel(),
+    authViewModel: AuthViewModel,
+    deviceViewModel: DeviceViewModel,
+    notificationViewModel: NotificationViewModel,
     appViewModel: AppViewModel = viewModel(),
 ) {
-    val isAuthenticated by appViewModel.isAuthenticated.collectAsState()
-    val username by appViewModel.username.collectAsState()
-    val authError by appViewModel.authError.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
+    val isAuthenticated = authState.isAuthenticated
+    val username = authState.name.ifBlank { authState.email }.ifBlank { "Guest" }
     val selectedDestination by appViewModel.selectedDestination.collectAsState()
     val buildings by appViewModel.buildings.collectAsState()
     val locations by appViewModel.locations.collectAsState()
@@ -132,6 +124,12 @@ fun DomoticsApp(
     val accessControls by appViewModel.accessControls.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(isAuthenticated) {
+        if (isAuthenticated) {
+            deviceViewModel.startMqttBridge()
+        }
+    }
 
     val drawerItems = listOf(
         DrawerEntry(AppDestination.Devices, Icons.Default.Sensors),
@@ -152,7 +150,7 @@ fun DomoticsApp(
                 Text(
                     text = "Smart Domotics",
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
                 )
                 drawerItems.forEach { entry ->
                     NavigationDrawerItem(
@@ -167,7 +165,7 @@ fun DomoticsApp(
                     )
                 }
             }
-        }
+        },
     ) {
         Scaffold(
             topBar = {
@@ -188,9 +186,7 @@ fun DomoticsApp(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Open navigation")
                         }
                     },
@@ -204,11 +200,9 @@ fun DomoticsApp(
             when {
                 selectedDestination == AppDestination.Auth -> {
                     Box(modifier = Modifier.padding(innerPadding)) {
-                        AuthenticationScreen(
-                            isAuthenticated = isAuthenticated,
-                            errorMessage = authError,
-                            onLogin = { user, pass -> appViewModel.login(user, pass) },
-                            onLogout = { appViewModel.logout() },
+                        AuthSection(
+                            authViewModel = authViewModel,
+                            onAuthenticated = { appViewModel.selectDestination(AppDestination.Devices) },
                         )
                     }
                 }
@@ -222,7 +216,7 @@ fun DomoticsApp(
                 else -> {
                     when (selectedDestination) {
                         AppDestination.Devices -> DeviceListScreen(
-                            viewModel = viewModel,
+                            viewModel = deviceViewModel,
                             notificationViewModel = notificationViewModel,
                             showTopBar = false,
                             contentPadding = innerPadding,
@@ -297,7 +291,10 @@ fun DomoticsApp(
                         AppDestination.Profile -> Box(modifier = Modifier.padding(innerPadding)) {
                             ProfileScreen(
                                 username = username,
-                                onLogout = { appViewModel.logout() },
+                                onLogout = {
+                                    authViewModel.logout()
+                                    appViewModel.selectDestination(AppDestination.Auth)
+                                },
                             )
                         }
 
@@ -305,50 +302,55 @@ fun DomoticsApp(
                     }
                 }
             }
+        }
+    }
+}
+
+private data class DrawerEntry(val destination: AppDestination, val icon: ImageVector)
+
+@Composable
+private fun AuthSection(
     authViewModel: AuthViewModel,
-    deviceViewModel: DeviceViewModel,
-    notificationViewModel: NotificationViewModel,
+    onAuthenticated: () -> Unit,
 ) {
     val authState by authViewModel.uiState.collectAsState()
     val navController = rememberNavController()
-
     val googleClient = rememberGoogleClient()
     val googleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val token = task.getResult(ApiException::class.java)?.idToken
             if (!token.isNullOrBlank()) {
+                Log.i("AuthGoogle", "Google sign-in returned idToken len=${token.length}")
                 authViewModel.handleGoogleIdToken(token)
             } else {
+                Log.w("AuthGoogle", "Google sign-in returned empty idToken")
                 authViewModel.setError("Google sign-in token missing")
             }
         } catch (error: Exception) {
+            Log.e("AuthGoogle", "Google sign-in failed", error)
             authViewModel.setError(error.message ?: "Google sign-in failed")
         }
     }
 
     LaunchedEffect(authState.isAuthenticated) {
         if (authState.isAuthenticated) {
-            deviceViewModel.startMqttBridge()
-            navController.navigate(Routes.Devices) {
-                popUpTo(navController.graph.startDestinationId) { inclusive = true }
-            }
+            onAuthenticated()
         }
     }
 
-    NavHost(navController = navController, startDestination = Routes.Login) {
-        composable(Routes.Login) {
+    NavHost(navController = navController, startDestination = "auth/login") {
+        composable("auth/login") {
             LoginScreen(
                 state = authState,
                 onEmailChange = authViewModel::updateEmail,
                 onPasswordChange = authViewModel::updatePassword,
                 onLogin = authViewModel::login,
                 onGoogleSignIn = { googleLauncher.launch(googleClient.signInIntent) },
-                onNavigateToRegister = { navController.navigate(Routes.Register) },
+                onNavigateToRegister = { navController.navigate("auth/register") },
             )
         }
-
-        composable(Routes.Register) {
+        composable("auth/register") {
             RegisterScreen(
                 state = authState,
                 onNameChange = authViewModel::updateName,
@@ -357,13 +359,6 @@ fun DomoticsApp(
                 onRegister = authViewModel::register,
                 onGoogleSignIn = { googleLauncher.launch(googleClient.signInIntent) },
                 onNavigateToLogin = { navController.popBackStack() },
-            )
-        }
-
-        composable(Routes.Devices) {
-            DeviceListScreen(
-                viewModel = deviceViewModel,
-                notificationViewModel = notificationViewModel,
             )
         }
     }
@@ -378,14 +373,7 @@ private fun rememberGoogleClient(): GoogleSignInClient {
             GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
                 .requestIdToken(BuildConfig.GOOGLE_CLIENT_ID)
-                .build()
+                .build(),
         )
     }
-}
-
-private data class DrawerEntry(val destination: AppDestination, val icon: ImageVector)
-private object Routes {
-    const val Login = "auth/login"
-    const val Register = "auth/register"
-    const val Devices = "devices"
 }

@@ -14,6 +14,12 @@ class InMemoryDataStore:
         self.zones: Dict[str, Zone] = {}
         self.areas: Dict[str, Area] = {}
 
+    def clear(self) -> None:
+        self.locations.clear()
+        self.buildings.clear()
+        self.zones.clear()
+        self.areas.clear()
+
 
 class InMemoryLocationRepository(LocationRepository):
     def __init__(self, store: InMemoryDataStore) -> None:
@@ -30,6 +36,12 @@ class InMemoryLocationRepository(LocationRepository):
 
     def list(self) -> list[Location]:
         return list(self._store.locations.values())
+
+    def update(self, location: Location) -> Location:
+        if location.id not in self._store.locations:
+            raise KeyError("Location not found")
+        self._store.locations[location.id] = location
+        return location
 
     def delete(self, location_id: str) -> None:
         if location_id not in self._store.locations:
@@ -58,6 +70,15 @@ class InMemoryBuildingRepository(BuildingRepository):
 
     def list_for_location(self, location_id: str) -> list[Building]:
         return [b for b in self._store.buildings.values() if b.location_id == location_id]
+
+    def update(self, building: Building) -> Building:
+        if building.id not in self._store.buildings:
+            raise KeyError("Building not found")
+        self._store.buildings[building.id] = building
+        location = self._store.locations.get(building.location_id)
+        if location:
+            location.buildings = [b for b in location.buildings if b.id != building.id] + [building]
+        return building
 
     def delete(self, building_id: str) -> None:
         building = self._store.buildings.get(building_id)
@@ -92,6 +113,15 @@ class InMemoryZoneRepository(ZoneRepository):
     def list_for_building(self, building_id: str) -> list[Zone]:
         return [z for z in self._store.zones.values() if z.building_id == building_id]
 
+    def update(self, zone: Zone) -> Zone:
+        if zone.id not in self._store.zones:
+            raise KeyError("Zone not found")
+        self._store.zones[zone.id] = zone
+        building = self._store.buildings.get(zone.building_id)
+        if building:
+            building.zones = [z for z in building.zones if z.id != zone.id] + [zone]
+        return zone
+
     def delete(self, zone_id: str) -> None:
         zone = self._store.zones.get(zone_id)
         if zone is None:
@@ -125,6 +155,15 @@ class InMemoryAreaRepository(AreaRepository):
     def list_for_zone(self, zone_id: str) -> list[Area]:
         return [a for a in self._store.areas.values() if a.zone_id == zone_id]
 
+    def update(self, area: Area) -> Area:
+        if area.id not in self._store.areas:
+            raise KeyError("Area not found")
+        self._store.areas[area.id] = area
+        zone = self._store.zones.get(area.zone_id)
+        if zone:
+            zone.areas = [a for a in zone.areas if a.id != area.id] + [area]
+        return area
+
     def delete(self, area_id: str) -> None:
         area = self._store.areas.get(area_id)
         if area is None:
@@ -142,6 +181,9 @@ class InMemoryRepositoryProvider:
         self.buildings = InMemoryBuildingRepository(self._store)
         self.zones = InMemoryZoneRepository(self._store)
         self.areas = InMemoryAreaRepository(self._store)
+
+    def clear(self) -> None:
+        self._store.clear()
 
 
 def create_in_memory_provider() -> RepositoryProvider:

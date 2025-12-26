@@ -13,9 +13,12 @@ class LocationResponse(BaseModel):
     building_ids: List[str] = []
 
 
+class LocationUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
 class BuildingCreateRequest(BaseModel):
     name: str = Field(..., min_length=1)
-    location_id: str = Field(..., min_length=1)
 
 
 class BuildingResponse(BaseModel):
@@ -25,9 +28,12 @@ class BuildingResponse(BaseModel):
     zone_ids: List[str] = []
 
 
+class BuildingUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
 class ZoneCreateRequest(BaseModel):
     name: str = Field(..., min_length=1)
-    building_id: str = Field(..., min_length=1)
 
 
 class ZoneResponse(BaseModel):
@@ -37,12 +43,19 @@ class ZoneResponse(BaseModel):
     area_ids: List[str] = []
 
 
+class ZoneUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
 class AreaCreateRequest(BaseModel):
     name: str = Field(..., min_length=1)
-    zone_id: str = Field(..., min_length=1)
 
 
 class AreaResponse(BaseModel):
     id: str
     name: str
     zone_id: str
+
+
+class AreaUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1)

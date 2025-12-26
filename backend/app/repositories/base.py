@@ -20,6 +20,10 @@ class LocationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update(self, location: Location) -> Location:
+        raise NotImplementedError
+
+    @abstractmethod
     def delete(self, location_id: str) -> None:
         raise NotImplementedError
 
@@ -35,6 +39,10 @@ class BuildingRepository(ABC):
 
     @abstractmethod
     def list_for_location(self, location_id: str) -> List[Building]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, building: Building) -> Building:
         raise NotImplementedError
 
     @abstractmethod
@@ -56,6 +64,10 @@ class ZoneRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update(self, zone: Zone) -> Zone:
+        raise NotImplementedError
+
+    @abstractmethod
     def delete(self, zone_id: str) -> None:
         raise NotImplementedError
 
@@ -71,6 +83,10 @@ class AreaRepository(ABC):
 
     @abstractmethod
     def list_for_zone(self, zone_id: str) -> List[Area]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, area: Area) -> Area:
         raise NotImplementedError
 
     @abstractmethod
