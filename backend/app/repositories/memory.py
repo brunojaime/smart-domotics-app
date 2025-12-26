@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from ..domain.entities import Area, Building, Location, Zone
 from .base import AreaRepository, BuildingRepository, LocationRepository, RepositoryProvider, ZoneRepository
+from .zone_device_repository import InMemoryZoneDeviceRepository
 
 
 class InMemoryDataStore:
@@ -181,6 +182,7 @@ class InMemoryRepositoryProvider:
         self.buildings = InMemoryBuildingRepository(self._store)
         self.zones = InMemoryZoneRepository(self._store)
         self.areas = InMemoryAreaRepository(self._store)
+        self.zone_devices = InMemoryZoneDeviceRepository()
 
     def clear(self) -> None:
         self._store.clear()

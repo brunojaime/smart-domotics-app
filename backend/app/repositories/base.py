@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import List, Protocol
 
 from ..domain.entities import Area, Building, Location, Zone
+from .zone_device_repository import ZoneDeviceRepository
 
 
 class LocationRepository(ABC):
@@ -99,3 +100,4 @@ class RepositoryProvider(Protocol):
     buildings: BuildingRepository
     zones: ZoneRepository
     areas: AreaRepository
+    zone_devices: ZoneDeviceRepository

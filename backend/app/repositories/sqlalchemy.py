@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 from ..domain.entities import Area, Building, Location, Zone
 from .base import AreaRepository, BuildingRepository, LocationRepository, RepositoryProvider, ZoneRepository
+from .zone_device_repository import InMemoryZoneDeviceRepository
 
 Base = declarative_base()
 
@@ -280,6 +281,7 @@ class SQLiteRepositoryProvider:
         self.buildings = SQLiteBuildingRepository(self._session_factory)
         self.zones = SQLiteZoneRepository(self._session_factory)
         self.areas = SQLiteAreaRepository(self._session_factory)
+        self.zone_devices = InMemoryZoneDeviceRepository()
 
 
 def create_sqlite_provider(database_url: str) -> RepositoryProvider:

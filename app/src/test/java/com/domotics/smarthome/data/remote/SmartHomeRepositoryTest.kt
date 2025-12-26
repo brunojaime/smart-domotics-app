@@ -31,7 +31,6 @@ class SmartHomeRepositoryTest {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SmartHomeApiService::class.java)
-        repository = SmartHomeRepository(api, StandardTestDispatcher())
     }
 
     @After
@@ -41,6 +40,7 @@ class SmartHomeRepositoryTest {
 
     @Test
     fun `create building hits nested endpoint`() = runTest {
+        repository = SmartHomeRepository(api, StandardTestDispatcher(testScheduler))
         val responseBody = """
             {"id":"b1","name":"HQ","location_id":"loc-1","zone_ids":["z1"]}
         """.trimIndent()
@@ -60,6 +60,7 @@ class SmartHomeRepositoryTest {
 
     @Test
     fun `create zone includes building and location in path`() = runTest {
+        repository = SmartHomeRepository(api, StandardTestDispatcher(testScheduler))
         val responseBody = """
             {"id":"z1","name":"Lobby","building_id":"b1","area_ids":[]}
         """.trimIndent()
@@ -77,6 +78,7 @@ class SmartHomeRepositoryTest {
 
     @Test
     fun `create device threads hierarchy`() = runTest {
+        repository = SmartHomeRepository(api, StandardTestDispatcher(testScheduler))
         val responseBody = """
             {"device_id":"dev1","name":"Sensor","zone_id":"zone-1"}
         """.trimIndent()
