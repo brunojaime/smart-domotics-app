@@ -1,8 +1,13 @@
 package com.domotics.smarthome.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.domotics.smarthome.data.auth.SecureTokenStorage
+import com.domotics.smarthome.data.auth.TokenProvider
 import com.domotics.smarthome.data.device.DeviceDiscoveryRepository
 import com.domotics.smarthome.data.device.DeviceDiscoveryRepositoryImpl
 import com.domotics.smarthome.data.device.DiscoveredDevice
@@ -15,12 +20,12 @@ import com.domotics.smarthome.data.device.PairingCredentials
 import com.domotics.smarthome.data.device.PairingService
 import com.domotics.smarthome.data.device.PairingServiceImpl
 import com.domotics.smarthome.data.device.PairingState
-import com.domotics.smarthome.entities.Device
-import com.domotics.smarthome.entities.DeviceStatus
-import com.domotics.smarthome.entities.Lighting
 import com.domotics.smarthome.data.mqtt.LightStatePayload
 import com.domotics.smarthome.data.mqtt.MqttBrokerRepository
 import com.domotics.smarthome.data.mqtt.MqttConnectionState
+import com.domotics.smarthome.entities.Device
+import com.domotics.smarthome.entities.DeviceStatus
+import com.domotics.smarthome.entities.Lighting
 import com.domotics.smarthome.provisioning.BluetoothProvisioningStrategy
 import com.domotics.smarthome.provisioning.DiscoveryMetadata
 import com.domotics.smarthome.provisioning.OnboardingCodeProvisioningStrategy
@@ -31,7 +36,6 @@ import com.domotics.smarthome.provisioning.ProvisioningStrategySummary
 import com.domotics.smarthome.provisioning.ProvisioningViewState
 import com.domotics.smarthome.provisioning.SoftApProvisioningStrategy
 import com.domotics.smarthome.provisioning.WifiCredentials
-import android.util.Log
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +60,8 @@ class DeviceViewModel(
             credentials: PairingCredentials,
         ): Boolean = true
     }),
-    private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(),
+    private val tokenProvider: TokenProvider? = null,
+    private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(tokenProvider = tokenProvider),
     private val startMqttBridgeOnInit: Boolean = true,
 ) : ViewModel() {
     private val _devices = MutableStateFlow<List<DeviceState>>(emptyList())
@@ -91,6 +96,8 @@ class DeviceViewModel(
     private var provisioningJob: Job? = null
     private var lastDiscoveryMetadata: DiscoveryMetadata? = null
 
+    private var mqttStarted = false
+
     init {
         if (startMqttBridgeOnInit) {
             startMqttBridge()
@@ -107,7 +114,9 @@ class DeviceViewModel(
         )
     }
 
-    private fun startMqttBridge() {
+    fun startMqttBridge() {
+        if (mqttStarted) return
+        mqttStarted = true
         viewModelScope.launch {
             runCatching {
                 mqttRepository.authenticateAndConnect()
@@ -317,6 +326,20 @@ class DeviceViewModel(
 
         val filtered = _devices.value.filterNot { it.device.id == payload.deviceId }
         _devices.value = filtered + updatedState
+    }
+}
+
+class DeviceViewModelFactory(private val context: Context, private val startOnInit: Boolean = false) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        val tokenStorage = SecureTokenStorage(context.applicationContext)
+        if (modelClass.isAssignableFrom(DeviceViewModel::class.java)) {
+            return DeviceViewModel(
+                tokenProvider = tokenStorage,
+                startMqttBridgeOnInit = startOnInit,
+            ) as T
+        }
+
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
 

@@ -1,6 +1,8 @@
 package com.domotics.smarthome.data.remote
 
 import com.domotics.smarthome.BuildConfig
+import com.domotics.smarthome.data.auth.AuthInterceptor
+import com.domotics.smarthome.data.auth.TokenProvider
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -24,9 +26,13 @@ interface BrokerApiService {
     companion object {
         fun create(
             baseUrl: String = DEFAULT_BASE_URL,
+            tokenProvider: TokenProvider? = null,
             enableLogging: Boolean = true,
         ): BrokerApiService {
             val clientBuilder = OkHttpClient.Builder()
+            if (tokenProvider != null) {
+                clientBuilder.addInterceptor(AuthInterceptor(tokenProvider))
+            }
             if (enableLogging) {
                 val logger = HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BASIC
