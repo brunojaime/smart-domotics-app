@@ -1,8 +1,7 @@
-import importlib
-import os
-from typing import AsyncGenerator
-
 import pytest
+
+
+def test_health(api_client) -> None:
 import httpx
 import pytest
 from httpx import ASGITransport
@@ -87,6 +86,8 @@ def test_health(api_client: TestClient) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_issue_mqtt_credentials(api_client, auth_header) -> None:
+    response = api_client.post("/api/auth/mqtt", headers=auth_header)
 @pytest.mark.anyio
 async def test_authentication_and_profile(api_client: httpx.AsyncClient) -> None:
     headers = await register_and_login(api_client)
@@ -126,6 +127,14 @@ def test_issue_mqtt_credentials(api_client: TestClient) -> None:
     assert body["expires_in_seconds"] == 86400
 
 
+def test_device_provisioning_flow(api_client, auth_header, sample_device_payload) -> None:
+    create_resp = api_client.post("/api/devices", headers=auth_header, json=sample_device_payload)
+    assert create_resp.status_code == 201
+    body = create_resp.json()
+    assert body["device_id"] == sample_device_payload["device_id"]
+    assert body["topics"] == ["users/alice/devices/lamp-1/#"]
+
+    list_resp = api_client.get("/api/devices", headers=auth_header)
 @pytest.mark.anyio
 async def test_device_provisioning_flow(api_client: httpx.AsyncClient) -> None:
     headers = await register_and_login(api_client)
@@ -146,8 +155,12 @@ def test_device_provisioning_flow(api_client: TestClient) -> None:
     assert list_resp.status_code == 200
     devices = list_resp.json()["devices"]
     assert len(devices) == 1
-    assert devices[0]["name"] == "Lamp"
+    assert devices[0]["name"] == sample_device_payload["name"]
 
+    delete_resp = api_client.delete("/api/devices/lamp-1", headers=auth_header)
+    assert delete_resp.status_code == 204
+
+    list_resp_after = api_client.get("/api/devices", headers=auth_header)
     delete_resp = await api_client.delete("/api/devices/lamp-1", headers=auth_header)
     assert delete_resp.status_code == 204
 
@@ -160,6 +173,12 @@ def test_device_provisioning_flow(api_client: TestClient) -> None:
     assert list_resp_after.json()["devices"] == []
 
 
+def test_duplicate_device_rejected(api_client, auth_header) -> None:
+    payload = {"device_id": "dup-1", "name": "Dup"}
+    first = api_client.post("/api/devices", headers=auth_header, json=payload)
+    assert first.status_code == 201
+
+    duplicate = api_client.post("/api/devices", headers=auth_header, json=payload)
 @pytest.mark.anyio
 async def test_duplicate_device_rejected(api_client: httpx.AsyncClient) -> None:
     headers = await register_and_login(api_client)
@@ -179,6 +198,8 @@ def test_duplicate_device_rejected(api_client: TestClient) -> None:
     assert "already exists" in duplicate.json()["detail"]
 
 
+@pytest.mark.parametrize("token", [None, "", "otherprefix_user"])
+def test_auth_required(api_client, token: str | None) -> None:
 @pytest.mark.parametrize("token", [None, "", "invalid.jwt.token"])
 @pytest.mark.anyio
 async def test_auth_required(api_client: httpx.AsyncClient, token: str | None) -> None:
