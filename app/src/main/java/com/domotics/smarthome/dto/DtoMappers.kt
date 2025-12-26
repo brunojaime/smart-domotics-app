@@ -9,85 +9,69 @@ import com.domotics.smarthome.entities.Zone
  * Centralized mapping functions between DTOs and domain entities
  */
 object DtoMappers {
-    fun LocationDTO.toDomain(): Location = Location(latitude = latitude, longitude = longitude, reference = reference)
+    fun LocationDTO.toDomain(): Location = Location(id = id, name = name, buildingIds = buildingIds)
 
-    fun Location.toDto(): LocationDTO = LocationDTO(latitude = latitude, longitude = longitude, reference = reference)
+    fun Location.toDto(): LocationDTO = LocationDTO(id = id, name = name, buildingIds = buildingIds)
 
-    fun toArea(request: AreaCreateRequest): Area = Area(name = request.name, squareMeters = request.squareMeters)
+    fun toArea(request: AreaCreateRequest): Area = Area(name = request.name, zoneId = request.zoneId)
 
     fun updateArea(area: Area, request: AreaUpdateRequest): Area =
         area.copy(
             name = request.name ?: area.name,
-            squareMeters = request.squareMeters ?: area.squareMeters
+            zoneId = request.zoneId,
         )
 
-    fun toAreaResponse(area: Area, zoneId: String): AreaResponse {
+    fun toAreaResponse(area: Area): AreaResponse {
         val response = AreaResponse(
             id = area.id,
-            zoneId = zoneId,
+            zoneId = area.zoneId,
             name = area.name,
-            squareMeters = area.squareMeters
         )
-        DtoValidators.validateAreaBelongsToZone(response, zoneId)
+        DtoValidators.validateAreaBelongsToZone(response, area.zoneId)
         return response
     }
 
     fun toZone(request: ZoneCreateRequest): Zone =
         Zone(
-            id = request.area.zoneId,
             name = request.name,
-            floor = request.floor,
-            area = toArea(request.area),
-            zoneType = request.zoneType
+            buildingId = request.buildingId,
         )
 
     fun updateZone(zone: Zone, request: ZoneUpdateRequest): Zone {
-        request.area?.let {
-            require(it.zoneId == zone.id) { "Area ${zone.area.id} must belong to zone ${zone.id}" }
-        }
-        val updatedArea = request.area?.let { updateArea(zone.area, it) } ?: zone.area
         return zone.copy(
             name = request.name ?: zone.name,
-            floor = request.floor ?: zone.floor,
-            area = updatedArea,
-            zoneType = request.zoneType ?: zone.zoneType
+            buildingId = request.buildingId,
         )
     }
 
-    fun toZoneResponse(zone: Zone, buildingId: String): ZoneResponse {
-        val areaResponse = toAreaResponse(zone.area, zone.id)
+    fun toZoneResponse(zone: Zone): ZoneResponse {
         val response = ZoneResponse(
             id = zone.id,
-            buildingId = buildingId,
+            buildingId = zone.buildingId,
             name = zone.name,
-            floor = zone.floor,
-            area = areaResponse,
-            zoneType = zone.zoneType
+            areaIds = zone.areaIds,
         )
-        DtoValidators.validateZoneBelongsToBuilding(response, buildingId)
+        DtoValidators.validateZoneBelongsToBuilding(response, zone.buildingId)
         return response
     }
 
     fun toBuilding(request: BuildingCreateRequest): Building =
         Building(
             name = request.name,
-            location = request.location.toDomain(),
-            description = request.description
+            locationId = request.locationId,
         )
 
     fun updateBuilding(building: Building, request: BuildingUpdateRequest): Building =
         building.copy(
             name = request.name ?: building.name,
-            location = request.location?.toDomain() ?: building.location,
-            description = request.description ?: building.description
+            locationId = request.locationId ?: building.locationId,
         )
 
     fun toBuildingResponse(building: Building): BuildingResponse =
         BuildingResponse(
             id = building.id,
             name = building.name,
-            location = building.location.toDto(),
-            description = building.description,
-            zones = building.zones.map { toZoneResponse(it, building.id) }
+            locationId = building.locationId,
+            zoneIds = building.zoneIds,
         )
 }

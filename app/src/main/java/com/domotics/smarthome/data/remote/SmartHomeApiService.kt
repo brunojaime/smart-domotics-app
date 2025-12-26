@@ -1,10 +1,5 @@
 package com.domotics.smarthome.data.remote
 
-import com.domotics.smarthome.entities.Area
-import com.domotics.smarthome.entities.Building
-import com.domotics.smarthome.entities.Location
-import com.domotics.smarthome.entities.Zone
-import com.domotics.smarthome.entities.ZoneType
 import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.Body
@@ -16,161 +11,217 @@ import retrofit2.http.Path
 
 interface SmartHomeApiService {
     // Locations
-    @GET("/api/locations")
-    suspend fun listLocations(): PagedResponse<LocationDto>
+    @GET("/api/v1/locations")
+    suspend fun listLocations(): List<LocationDto>
 
-    @POST("/api/locations")
+    @POST("/api/v1/locations")
     suspend fun createLocation(@Body request: CreateLocationRequest): LocationDto
 
-    @PUT("/api/locations/{id}")
+    @PUT("/api/v1/locations/{id}")
     suspend fun updateLocation(
         @Path("id") id: String,
         @Body request: CreateLocationRequest,
     ): LocationDto
 
-    @DELETE("/api/locations/{id}")
+    @DELETE("/api/v1/locations/{id}")
     suspend fun deleteLocation(@Path("id") id: String): Response<Unit>
 
     // Buildings
-    @GET("/api/buildings")
-    suspend fun listBuildings(): PagedResponse<BuildingDto>
+    @GET("/api/v1/locations/{locationId}/buildings")
+    suspend fun listBuildings(@Path("locationId") locationId: String): List<BuildingDto>
 
-    @POST("/api/buildings")
-    suspend fun createBuilding(@Body request: CreateBuildingRequest): BuildingDto
+    @POST("/api/v1/locations/{locationId}/buildings")
+    suspend fun createBuilding(
+        @Path("locationId") locationId: String,
+        @Body request: CreateBuildingRequest,
+    ): BuildingDto
 
-    @PUT("/api/buildings/{id}")
+    @PUT("/api/v1/locations/{locationId}/buildings/{id}")
     suspend fun updateBuilding(
+        @Path("locationId") locationId: String,
         @Path("id") id: String,
         @Body request: CreateBuildingRequest,
     ): BuildingDto
 
-    @DELETE("/api/buildings/{id}")
-    suspend fun deleteBuilding(@Path("id") id: String): Response<Unit>
-
-    // Areas
-    @GET("/api/areas")
-    suspend fun listAreas(): PagedResponse<AreaDto>
-
-    @POST("/api/areas")
-    suspend fun createArea(@Body request: CreateAreaRequest): AreaDto
-
-    @PUT("/api/areas/{id}")
-    suspend fun updateArea(
+    @DELETE("/api/v1/locations/{locationId}/buildings/{id}")
+    suspend fun deleteBuilding(
+        @Path("locationId") locationId: String,
         @Path("id") id: String,
-        @Body request: CreateAreaRequest,
-    ): AreaDto
-
-    @DELETE("/api/areas/{id}")
-    suspend fun deleteArea(@Path("id") id: String): Response<Unit>
+    ): Response<Unit>
 
     // Zones
-    @GET("/api/zones")
-    suspend fun listZones(): PagedResponse<ZoneDto>
+    @GET("/api/v1/locations/{locationId}/buildings/{buildingId}/zones")
+    suspend fun listZones(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+    ): List<ZoneDto>
 
-    @POST("/api/zones")
-    suspend fun createZone(@Body request: CreateZoneRequest): ZoneDto
+    @POST("/api/v1/locations/{locationId}/buildings/{buildingId}/zones")
+    suspend fun createZone(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Body request: CreateZoneRequest,
+    ): ZoneDto
 
-    @PUT("/api/zones/{id}")
+    @PUT("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{id}")
     suspend fun updateZone(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
         @Path("id") id: String,
         @Body request: CreateZoneRequest,
     ): ZoneDto
 
-    @DELETE("/api/zones/{id}")
-    suspend fun deleteZone(@Path("id") id: String): Response<Unit>
-}
+    @DELETE("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{id}")
+    suspend fun deleteZone(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("id") id: String,
+    ): Response<Unit>
 
-data class PagedResponse<T>(
-    val items: List<T>,
-)
+    // Areas
+    @GET("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/areas")
+    suspend fun listAreas(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+    ): List<AreaDto>
+
+    @POST("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/areas")
+    suspend fun createArea(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+        @Body request: CreateAreaRequest,
+    ): AreaDto
+
+    @PUT("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/areas/{id}")
+    suspend fun updateArea(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+        @Path("id") id: String,
+        @Body request: CreateAreaRequest,
+    ): AreaDto
+
+    @DELETE("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/areas/{id}")
+    suspend fun deleteArea(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+        @Path("id") id: String,
+    ): Response<Unit>
+
+    // Devices
+    @GET("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/devices")
+    suspend fun listDevices(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+    ): List<DeviceDto>
+
+    @POST("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/devices")
+    suspend fun createDevice(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+        @Body request: CreateDeviceRequest,
+    ): DeviceDto
+
+    @DELETE("/api/v1/locations/{locationId}/buildings/{buildingId}/zones/{zoneId}/devices/{deviceId}")
+    suspend fun deleteDevice(
+        @Path("locationId") locationId: String,
+        @Path("buildingId") buildingId: String,
+        @Path("zoneId") zoneId: String,
+        @Path("deviceId") deviceId: String,
+    ): Response<Unit>
+}
 
 data class LocationDto(
     val id: String,
     val name: String,
-    val latitude: Double,
-    val longitude: Double,
-    val reference: String?,
+    @SerializedName("building_ids")
+    val buildingIds: List<String> = emptyList(),
 ) {
-    fun toEntity(): Location = Location(
-        latitude = latitude,
-        longitude = longitude,
-        reference = reference,
-    )
+    fun toEntity(): com.domotics.smarthome.entities.Location =
+        com.domotics.smarthome.entities.Location(id = id, name = name, buildingIds = buildingIds)
 }
 
 data class CreateLocationRequest(
     val name: String,
-    val latitude: Double,
-    val longitude: Double,
-    val reference: String?,
 )
 
 data class BuildingDto(
     val id: String,
     val name: String,
-    val description: String?,
-    val location: LocationDto,
-    val zones: List<ZoneDto>,
+    @SerializedName("location_id")
+    val locationId: String,
+    @SerializedName("zone_ids")
+    val zoneIds: List<String> = emptyList(),
 ) {
-    fun toEntity(): Building = Building(
-        id = id,
-        name = name,
-        location = location.toEntity(),
-        zones = zones.map { it.toEntity() }.toMutableList(),
-        description = description,
-    )
+    fun toEntity(): com.domotics.smarthome.entities.Building =
+        com.domotics.smarthome.entities.Building(
+            id = id,
+            name = name,
+            locationId = locationId,
+            zoneIds = zoneIds.toMutableList(),
+        )
 }
 
 data class CreateBuildingRequest(
     val name: String,
-    val description: String?,
-    @SerializedName("location_id")
-    val locationId: String,
 )
 
 data class ZoneDto(
     val id: String,
     val name: String,
-    val floor: Int,
-    val area: AreaDto,
-    @SerializedName("zone_type")
-    val zoneType: String?,
+    @SerializedName("building_id")
+    val buildingId: String,
+    @SerializedName("area_ids")
+    val areaIds: List<String> = emptyList(),
 ) {
-    fun toEntity(): Zone = Zone(
-        id = id,
-        name = name,
-        floor = floor,
-        area = area.toEntity(),
-        zoneType = zoneType?.let { type ->
-            ZoneType.values().firstOrNull { it.name.equals(type, ignoreCase = true) }
-        }
-    )
+    fun toEntity(): com.domotics.smarthome.entities.Zone =
+        com.domotics.smarthome.entities.Zone(
+            id = id,
+            name = name,
+            buildingId = buildingId,
+            areaIds = areaIds.toMutableList(),
+        )
 }
 
 data class CreateZoneRequest(
     val name: String,
-    val floor: Int,
-    @SerializedName("area_id")
-    val areaId: String,
-    @SerializedName("zone_type")
-    val zoneType: String?,
 )
 
 data class AreaDto(
     val id: String,
     val name: String,
-    @SerializedName("square_meters")
-    val squareMeters: Double?,
+    @SerializedName("zone_id")
+    val zoneId: String,
 ) {
-    fun toEntity(): Area = Area(
-        id = id,
-        name = name,
-        squareMeters = squareMeters,
-    )
+    fun toEntity(): com.domotics.smarthome.entities.Area =
+        com.domotics.smarthome.entities.Area(
+            id = id,
+            name = name,
+            zoneId = zoneId,
+        )
 }
 
 data class CreateAreaRequest(
     val name: String,
-    @SerializedName("square_meters")
-    val squareMeters: Double?,
+)
+
+data class DeviceDto(
+    @SerializedName("device_id")
+    val deviceId: String,
+    val name: String,
+    @SerializedName("zone_id")
+    val zoneId: String,
+) {
+    fun toEntity(): DeviceMetadata = DeviceMetadata(deviceId = deviceId, name = name, zoneId = zoneId)
+}
+
+data class CreateDeviceRequest(
+    @SerializedName("device_id")
+    val deviceId: String,
+    val name: String,
 )

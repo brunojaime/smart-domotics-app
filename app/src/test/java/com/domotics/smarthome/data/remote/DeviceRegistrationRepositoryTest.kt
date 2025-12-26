@@ -49,11 +49,8 @@ class DeviceRegistrationRepositoryTest {
     fun `registerDevice saves metadata and refreshes cache on success`() = runTest {
         val responseBody = DeviceRegistrationResponse(
             deviceId = "device-123",
-            serialNumber = "serial-xyz",
-            macAddress = "00:11:22:33:44:55",
-            accessToken = "token-abc",
             name = "Living Room Lamp",
-            ownerId = "user-1"
+            zoneId = "zone-1",
         )
         server.enqueue(MockResponse().setResponseCode(200).setBody(Gson().toJson(responseBody)))
 
@@ -63,18 +60,20 @@ class DeviceRegistrationRepositoryTest {
             testSchedulerCoroutineDispatcher(testScheduler)
         )
         val result = repository.registerDevice(
-            DeviceRegistrationRequest("serial-xyz", "00:11:22:33:44:55", "token-abc"),
+            locationId = "loc-1",
+            buildingId = "bldg-1",
+            zoneId = "zone-1",
+            request = DeviceRegistrationRequest(deviceId = "device-123", name = "Living Room Lamp"),
             maxRetries = 0
         )
 
         assertTrue(result is DeviceRegistrationResult.Success)
         val metadata = (result as DeviceRegistrationResult.Success).metadata
         assertEquals(responseBody.deviceId, metadata.deviceId)
-        assertEquals(responseBody.serialNumber, metadata.serialNumber)
-        assertEquals(responseBody.macAddress, metadata.macAddress)
-        assertEquals(responseBody.accessToken, metadata.accessToken)
         assertEquals(responseBody.name, metadata.name)
-        assertEquals(1, localDataSource.savedDevices.size)
+        assertEquals(responseBody.zoneId, metadata.zoneId)
+        val recordedRequest = server.takeRequest()
+        assertEquals("/api/v1/locations/loc-1/buildings/bldg-1/zones/zone-1/devices", recordedRequest.path)
         assertTrue(localDataSource.refreshCount.get() > 0)
     }
 
@@ -88,8 +87,11 @@ class DeviceRegistrationRepositoryTest {
             testSchedulerCoroutineDispatcher(testScheduler)
         )
         val result = repository.registerDevice(
-            DeviceRegistrationRequest("serial-conflict", "AA:BB:CC:DD:EE:FF", "token-conflict"),
-            maxRetries = 0
+            locationId = "loc-1",
+            buildingId = "bldg-1",
+            zoneId = "zone-1",
+            request = DeviceRegistrationRequest(deviceId = "serial-conflict", name = "Conflict"),
+            maxRetries = 0,
         )
 
         assertTrue(result is DeviceRegistrationResult.Conflict)
@@ -113,18 +115,18 @@ class DeviceRegistrationRepositoryTest {
                 Gson().toJson(
                     DeviceRegistrationResponse(
                         deviceId = "device-retry",
-                        serialNumber = "serial-retry",
-                        macAddress = "11:22:33:44:55:66",
-                        accessToken = "token-retry",
                         name = "Garage Sensor",
-                        ownerId = "user-2"
+                        zoneId = "zone-retry",
                     )
                 )
             )
         )
 
         val result = repository.registerDevice(
-            DeviceRegistrationRequest("serial-retry", "11:22:33:44:55:66", "token-retry"),
+            locationId = "loc-2",
+            buildingId = "bldg-2",
+            zoneId = "zone-retry",
+            request = DeviceRegistrationRequest(deviceId = "device-retry", name = "Garage Sensor"),
             maxRetries = 2,
             initialDelayMs = 100
         )
