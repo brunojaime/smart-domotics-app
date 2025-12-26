@@ -12,14 +12,16 @@ import com.domotics.smarthome.data.device.DeviceDiscoveryRepository
 import com.domotics.smarthome.data.device.DeviceDiscoveryRepositoryImpl
 import com.domotics.smarthome.data.device.DiscoveredDevice
 import com.domotics.smarthome.data.device.DiscoveryState
+import com.domotics.smarthome.data.device.MockBluetoothScanner
 import com.domotics.smarthome.data.device.MockMdnsScanner
 import com.domotics.smarthome.data.device.MockSsdpScanner
 import com.domotics.smarthome.data.device.MockWifiScanner
-import com.domotics.smarthome.data.device.PairingClient
 import com.domotics.smarthome.data.device.PairingCredentials
 import com.domotics.smarthome.data.device.PairingService
 import com.domotics.smarthome.data.device.PairingServiceImpl
 import com.domotics.smarthome.data.device.PairingState
+import com.domotics.smarthome.data.device.RadioState
+import com.domotics.smarthome.data.device.LocalPairingClient
 import com.domotics.smarthome.data.mqtt.LightStatePayload
 import com.domotics.smarthome.data.mqtt.MqttBrokerRepository
 import com.domotics.smarthome.data.mqtt.MqttConnectionState
@@ -51,19 +53,25 @@ data class DeviceState(
 )
 
 class DeviceViewModel(
+    /**
+     * By default the view model wires in demo scanners that emit simulated devices so the UI can
+     * be exercised without hardware. To talk to real devices, pass a repository backed by
+     * production `DeviceScanner` implementations instead.
+     */
     private val discoveryRepository: DeviceDiscoveryRepository = DeviceDiscoveryRepositoryImpl(
-        listOf(MockWifiScanner(), MockMdnsScanner(), MockSsdpScanner()),
+        listOf(MockWifiScanner(), MockMdnsScanner(), MockSsdpScanner(), MockBluetoothScanner()),
     ),
-    private val pairingService: PairingService = PairingServiceImpl(object : PairingClient {
-        override suspend fun sendCredentials(
-            device: DiscoveredDevice,
-            credentials: PairingCredentials,
-        ): Boolean = true
-    }),
+    pairingService: PairingService? = null,
     private val tokenProvider: TokenProvider? = null,
     private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(tokenProvider = tokenProvider),
     private val startMqttBridgeOnInit: Boolean = true,
 ) : ViewModel() {
+    private val _radioState = MutableStateFlow(RadioState())
+    val radioState: StateFlow<RadioState> = _radioState.asStateFlow()
+
+    private val discoveryMetadata = mutableMapOf<String, DiscoveryMetadata>()
+    private val pairingService: PairingService = pairingService
+        ?: PairingServiceImpl(LocalPairingClient({ discoveryMetadata[it] }, { _radioState.value }))
     private val _devices = MutableStateFlow<List<DeviceState>>(emptyList())
     val devices: StateFlow<List<DeviceState>> = _devices.asStateFlow()
 
@@ -72,6 +80,9 @@ class DeviceViewModel(
 
     private val _discoveryState = MutableStateFlow<DiscoveryState>(DiscoveryState.Idle)
     val discoveryState: StateFlow<DiscoveryState> = _discoveryState.asStateFlow()
+
+    private val _usesSimulatedDiscovery = MutableStateFlow(false)
+    val usesSimulatedDiscovery: StateFlow<Boolean> = _usesSimulatedDiscovery.asStateFlow()
 
     private val _selectedDevice = MutableStateFlow<DiscoveredDevice?>(null)
     val selectedDevice: StateFlow<DiscoveredDevice?> = _selectedDevice.asStateFlow()
@@ -102,16 +113,15 @@ class DeviceViewModel(
         if (startMqttBridgeOnInit) {
             startMqttBridge()
         }
-        updateDiscovery(
-            DiscoveryMetadata(
-                deviceSsid = "SmartBulb-Setup",
-                supportsSoftAp = true,
-                supportsBluetoothFallback = true,
-                supportsOnboardingCode = true,
-                expectedWifiPassword = "password123",
-                respondsToHeartbeat = true
-            )
-        )
+        updateDiscovery(DiscoveryMetadata())
+    }
+
+    fun setWifiEnabled(enabled: Boolean) {
+        _radioState.value = _radioState.value.copy(wifiEnabled = enabled)
+    }
+
+    fun setBluetoothEnabled(enabled: Boolean) {
+        _radioState.value = _radioState.value.copy(bluetoothEnabled = enabled)
     }
 
     fun startMqttBridge() {
@@ -257,12 +267,26 @@ class DeviceViewModel(
     }
 
     fun startDiscovery() {
+        val radios = _radioState.value
+        if (!radios.wifiEnabled && !radios.bluetoothEnabled) {
+            _discoveryState.value = DiscoveryState.Error("Enable Wi‑Fi or Bluetooth to scan for devices")
+            return
+        }
+
         discoveryJob?.cancel()
         discoveryJob = viewModelScope.launch {
             discoveryRepository.discoverDevices().collectLatest { state ->
                 _discoveryState.value = state
                 if (state is DiscoveryState.Results) {
+                    discoveryMetadata.clear()
+                    _usesSimulatedDiscovery.value = state.devices.any { it.metadata.simulated }
+                    state.devices.forEach { device ->
+                        discoveryMetadata[device.id] = device.metadata
+                    }
                     _selectedDevice.value = state.devices.firstOrNull()
+                    state.devices.firstOrNull()?.let { device ->
+                        updateDiscovery(discoveryMetadata[device.id] ?: DiscoveryMetadata())
+                    }
                 }
             }
         }
@@ -271,12 +295,15 @@ class DeviceViewModel(
     fun resetDiscovery() {
         discoveryJob?.cancel()
         _discoveryState.value = DiscoveryState.Idle
+        _usesSimulatedDiscovery.value = false
         _selectedDevice.value = null
         _pairingState.value = PairingState.Idle
+        discoveryMetadata.clear()
     }
 
     fun selectDevice(device: DiscoveredDevice) {
         _selectedDevice.value = device
+        updateDiscovery(discoveryMetadata[device.id] ?: DiscoveryMetadata())
     }
 
     fun updateCredentials(ssid: String, password: String) {
