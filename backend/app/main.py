@@ -25,6 +25,7 @@ from .models import (
     UserCreateRequest,
 )
 from .services.hivemq_client import build_mqtt_credentials, device_topics
+from .routers import buildings, locations, rooms
 from .store import device_store
 
 app = FastAPI(title="Smart Domotics Broker API", version="0.2.0")
@@ -43,6 +44,12 @@ async def register_user(request: UserCreateRequest) -> TokenResponse:
         user = create_user(request.username, request.password, request.email)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+api_prefix = "/api/v1"
+
+app.include_router(locations.router, prefix=api_prefix)
+app.include_router(buildings.router, prefix=api_prefix)
+app.include_router(rooms.router, prefix=api_prefix)
+
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)

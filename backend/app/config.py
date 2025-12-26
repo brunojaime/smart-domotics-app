@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     hivemq_username: str = Field("local_backend", env="HIVEMQ_USERNAME")
     hivemq_password: str = Field("local_backend_password", env="HIVEMQ_PASSWORD")
     mqtt_credentials_ttl: int = Field(86400, env="MQTT_CREDENTIALS_TTL")
+    storage_backend: str = Field("memory", env="STORAGE_BACKEND")
+    sqlite_db_path: str = Field("./data/domotics.sqlite", env="SQLITE_DB_PATH")
     cors_allowed_origins: List[str] = Field(
         ["http://localhost:3000", "http://localhost:5173"], env="CORS_ALLOWED_ORIGINS"
     )

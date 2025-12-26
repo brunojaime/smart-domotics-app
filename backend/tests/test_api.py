@@ -1,7 +1,3 @@
-import importlib
-import os
-from typing import AsyncGenerator
-
 import pytest
 import httpx
 from httpx import ASGITransport
@@ -47,6 +43,7 @@ async def api_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     finally:
         await c.aclose()
         device_store.clear()
+from fastapi.testclient import TestClient
 
 
 async def register_and_login(api_client: httpx.AsyncClient, username: str = "alice") -> dict:
@@ -68,9 +65,8 @@ async def register_and_login(api_client: httpx.AsyncClient, username: str = "ali
     }
 
 
-@pytest.mark.anyio
-async def test_health(api_client: httpx.AsyncClient) -> None:
-    response = await api_client.get("/healthz")
+def test_health(api_client: TestClient) -> None:
+    response = api_client.get("/healthz")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
@@ -103,6 +99,8 @@ async def test_authentication_and_profile(api_client: httpx.AsyncClient) -> None
 async def test_issue_mqtt_credentials(api_client: httpx.AsyncClient) -> None:
     headers = await register_and_login(api_client)
     response = await api_client.post("/api/auth/mqtt", headers={"Authorization": headers["Authorization"]})
+def test_issue_mqtt_credentials(api_client: TestClient) -> None:
+    response = api_client.post("/api/auth/mqtt", headers=AUTH_HEADER)
     assert response.status_code == 200
     body = response.json()
     assert body["host"] == "localhost"
@@ -118,6 +116,9 @@ async def test_device_provisioning_flow(api_client: httpx.AsyncClient) -> None:
     auth_header = {"Authorization": headers["Authorization"]}
     create_resp = await api_client.post(
         "/api/devices", headers=auth_header, json={"device_id": "lamp-1", "name": "Lamp"}
+def test_device_provisioning_flow(api_client: TestClient) -> None:
+    create_resp = api_client.post(
+        "/api/devices", headers=AUTH_HEADER, json={"device_id": "lamp-1", "name": "Lamp"}
     )
     assert create_resp.status_code == 201
     body = create_resp.json()
@@ -125,6 +126,7 @@ async def test_device_provisioning_flow(api_client: httpx.AsyncClient) -> None:
     assert body["topics"] == [f"users/{headers['user_id']}/devices/lamp-1/#"]
 
     list_resp = await api_client.get("/api/devices", headers=auth_header)
+    list_resp = api_client.get("/api/devices", headers=AUTH_HEADER)
     assert list_resp.status_code == 200
     devices = list_resp.json()["devices"]
     assert len(devices) == 1
@@ -134,6 +136,10 @@ async def test_device_provisioning_flow(api_client: httpx.AsyncClient) -> None:
     assert delete_resp.status_code == 204
 
     list_resp_after = await api_client.get("/api/devices", headers=auth_header)
+    delete_resp = api_client.delete("/api/devices/lamp-1", headers=AUTH_HEADER)
+    assert delete_resp.status_code == 204
+
+    list_resp_after = api_client.get("/api/devices", headers=AUTH_HEADER)
     assert list_resp_after.status_code == 200
     assert list_resp_after.json()["devices"] == []
 
@@ -147,6 +153,12 @@ async def test_duplicate_device_rejected(api_client: httpx.AsyncClient) -> None:
     assert first.status_code == 201
 
     duplicate = await api_client.post("/api/devices", headers=auth_header, json=payload)
+def test_duplicate_device_rejected(api_client: TestClient) -> None:
+    payload = {"device_id": "dup-1", "name": "Dup"}
+    first = api_client.post("/api/devices", headers=AUTH_HEADER, json=payload)
+    assert first.status_code == 201
+
+    duplicate = api_client.post("/api/devices", headers=AUTH_HEADER, json=payload)
     assert duplicate.status_code == 400
     assert "already exists" in duplicate.json()["detail"]
 
@@ -154,6 +166,8 @@ async def test_duplicate_device_rejected(api_client: httpx.AsyncClient) -> None:
 @pytest.mark.parametrize("token", [None, "", "invalid.jwt.token"])
 @pytest.mark.anyio
 async def test_auth_required(api_client: httpx.AsyncClient, token: str | None) -> None:
+@pytest.mark.parametrize("token", [None, "", "otherprefix_user"])
+def test_auth_required(api_client: TestClient, token: str | None) -> None:
     headers = {"Authorization": f"Bearer {token}"} if token is not None else {}
-    resp = await api_client.get("/api/devices", headers=headers)
+    resp = api_client.get("/api/devices", headers=headers)
     assert resp.status_code == 401
