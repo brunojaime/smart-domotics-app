@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.util.Log
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttAsyncClient
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
@@ -18,8 +19,13 @@ import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 
 class DomoticsMqttClient {
+    private companion object {
+        private const val TAG = "DomoticsMqttClient"
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _connectionState = MutableStateFlow<MqttConnectionState>(MqttConnectionState.Disconnected)
     val connectionState: StateFlow<MqttConnectionState> = _connectionState.asStateFlow()
@@ -34,6 +40,7 @@ class DomoticsMqttClient {
 
         val brokerHost = if (credentials.host == "localhost") "10.0.2.2" else credentials.host
         val serverUri = "tcp://$brokerHost:${credentials.port}"
+        Log.i(TAG, "Connecting to MQTT broker at $serverUri with clientId=${credentials.clientId}")
 
         val connectOptions = MqttConnectOptions().apply {
             userName = credentials.username
@@ -42,7 +49,7 @@ class DomoticsMqttClient {
             isCleanSession = true
         }
 
-        client = MqttAsyncClient(serverUri, credentials.clientId).apply {
+        client = MqttAsyncClient(serverUri, credentials.clientId, MemoryPersistence()).apply {
             setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                     _connectionState.value = MqttConnectionState.Connected
@@ -50,6 +57,7 @@ class DomoticsMqttClient {
                 }
 
                 override fun connectionLost(cause: Throwable?) {
+                    Log.e(TAG, "MQTT connection lost", cause)
                     _connectionState.value = MqttConnectionState.Disconnected
                 }
 
@@ -72,11 +80,13 @@ class DomoticsMqttClient {
             _connectionState.value = MqttConnectionState.Connecting
             connect(connectOptions, null, object : IMqttActionListener {
                 override fun onSuccess(asyncActionToken: IMqttToken?) {
+                    Log.i(TAG, "Connected to MQTT broker at $serverUri")
                     _connectionState.value = MqttConnectionState.Connected
                     onReady?.invoke()
                 }
 
                 override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                    Log.e(TAG, "Failed to connect to MQTT broker at $serverUri", exception)
                     _connectionState.value = MqttConnectionState.Error(exception?.message)
                 }
             })
@@ -86,10 +96,12 @@ class DomoticsMqttClient {
     fun subscribe(topic: String, qos: Int = 1) {
         client?.subscribe(topic, qos, null, object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
+                Log.i(TAG, "Subscribed to topic $topic")
                 // No-op
             }
 
             override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                Log.e(TAG, "Failed to subscribe to topic $topic", exception)
                 _connectionState.value = MqttConnectionState.Error(exception?.message)
             }
         })
@@ -101,8 +113,11 @@ class DomoticsMqttClient {
             isRetained = retained
         }
         client?.publish(topic, mqttMessage, null, object : IMqttActionListener {
-            override fun onSuccess(asyncActionToken: IMqttToken?) {}
+            override fun onSuccess(asyncActionToken: IMqttToken?) {
+                Log.i(TAG, "Published message to $topic")
+            }
             override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                Log.e(TAG, "Failed to publish message to $topic", exception)
                 _connectionState.value = MqttConnectionState.Error(exception?.message)
             }
         })

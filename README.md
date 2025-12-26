@@ -121,6 +121,34 @@ The app requests the following permissions for IoT functionality:
 ./gradlew test
 ```
 
+## Local Broker Setup (Physical Device)
+
+To run the app on a real phone, make sure the backend and broker are reachable on your LAN.
+
+1. Start HiveMQ and the backend:
+   ```bash
+   docker compose -f backend/docker-compose.yml up -d
+   make -C backend dev
+   ```
+2. Set the backend to advertise your LAN IP in `backend/.env`:
+   ```
+   HIVEMQ_HOST=192.168.1.28
+   HIVEMQ_PORT=1883
+   ```
+3. Configure the app base URL via Gradle properties (local machine only):
+   ```
+   ~/.gradle/gradle.properties
+   API_BASE_URL=http://192.168.1.28:8000
+   ```
+4. Update cleartext allowance for your LAN IP:
+   - `app/src/main/res/xml/network_security_config.xml`
+   - Replace `192.168.1.28` with your current LAN IP.
+5. Rebuild/install the app:
+   ```bash
+   ./gradlew assembleDebug
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+
 ## License
 
 TBD

@@ -4,6 +4,7 @@ import com.domotics.smarthome.data.remote.BrokerApiDefaults
 import com.domotics.smarthome.data.remote.BrokerApiService
 import com.domotics.smarthome.data.remote.MqttCredentialsDto
 import com.google.gson.Gson
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,8 +27,10 @@ class MqttBrokerRepository(
 
     suspend fun authenticateAndConnect(appToken: String = BrokerApiDefaults.demoToken) {
         val bearer = "Bearer $appToken"
+        Log.i("MqttBrokerRepository", "Requesting MQTT credentials from ${BrokerApiDefaults.baseUrl}")
         val dto = api.issueMqttCredentials(bearer)
         val credentials = dto.toDomain()
+        Log.i("MqttBrokerRepository", "Received MQTT broker ${credentials.host}:${credentials.port}")
         userId = appToken.removePrefix("user_")
         _credentialsState.value = credentials
 
