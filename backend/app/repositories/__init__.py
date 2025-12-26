@@ -4,9 +4,10 @@ from functools import lru_cache
 from pathlib import Path
 
 from ..config import settings
-from .base import RepositoryProvider
+from .base import RepositoryProvider, ZoneRepository
 from .memory import create_in_memory_provider
 from .sqlalchemy import create_sqlite_provider
+from .zone_device_repository import ZoneDeviceRepository
 
 
 @lru_cache
@@ -19,3 +20,13 @@ def get_repository_provider() -> RepositoryProvider:
     if backend == "memory":
         return create_in_memory_provider()
     raise ValueError(f"Unknown storage backend: {backend}")
+
+
+__all__ = [
+    "RepositoryProvider",
+    "ZoneRepository",
+    "ZoneDeviceRepository",
+    "get_repository_provider",
+    "create_in_memory_provider",
+    "create_sqlite_provider",
+]

@@ -8,10 +8,13 @@ import com.domotics.smarthome.entities.Zone
 /**
  * Centralized mapping functions between DTOs and domain entities
  */
-object DtoMappers {
-    fun LocationDTO.toDomain(): Location = Location(id = id, name = name, buildingIds = buildingIds)
+fun LocationDTO.toDomain(): Location =
+    Location(id = id, name = name, buildingIds = buildingIds)
 
-    fun Location.toDto(): LocationDTO = LocationDTO(id = id, name = name, buildingIds = buildingIds)
+fun Location.toDto(): LocationDTO =
+    LocationDTO(id = id, name = name, buildingIds = buildingIds)
+
+object DtoMappers {
 
     fun toArea(request: AreaCreateRequest): Area = Area(name = request.name, zoneId = request.zoneId)
 
