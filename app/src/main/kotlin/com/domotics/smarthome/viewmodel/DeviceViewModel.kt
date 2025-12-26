@@ -22,15 +22,19 @@ import com.domotics.smarthome.data.device.PairingServiceImpl
 import com.domotics.smarthome.data.device.PairingState
 import com.domotics.smarthome.data.device.RadioState
 import com.domotics.smarthome.data.device.LocalPairingClient
+import com.domotics.smarthome.data.remote.ProvisioningApiService
 import com.domotics.smarthome.data.mqtt.LightStatePayload
 import com.domotics.smarthome.data.mqtt.MqttBrokerRepository
 import com.domotics.smarthome.data.mqtt.MqttConnectionState
 import com.domotics.smarthome.entities.Device
 import com.domotics.smarthome.entities.DeviceStatus
 import com.domotics.smarthome.entities.Lighting
+import com.domotics.smarthome.provisioning.BackendProvisioningRepository
 import com.domotics.smarthome.provisioning.BluetoothProvisioningStrategy
 import com.domotics.smarthome.provisioning.DiscoveryMetadata
 import com.domotics.smarthome.provisioning.OnboardingCodeProvisioningStrategy
+import com.domotics.smarthome.provisioning.ProvisioningFailureReason
+import com.domotics.smarthome.provisioning.ProvisioningOrchestrator
 import com.domotics.smarthome.provisioning.ProvisioningProgress
 import com.domotics.smarthome.provisioning.ProvisioningResult
 import com.domotics.smarthome.provisioning.ProvisioningStrategy
@@ -62,6 +66,7 @@ class DeviceViewModel(
         listOf(MockWifiScanner(), MockMdnsScanner(), MockSsdpScanner(), MockBluetoothScanner()),
     ),
     pairingService: PairingService? = null,
+    private val provisioningOrchestrator: ProvisioningOrchestrator? = null,
     private val tokenProvider: TokenProvider? = null,
     private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(tokenProvider = tokenProvider),
     private val startMqttBridgeOnInit: Boolean = true,
@@ -100,6 +105,13 @@ class DeviceViewModel(
         BluetoothProvisioningStrategy(),
         OnboardingCodeProvisioningStrategy()
     )
+
+    private val backendProvisioningOrchestrator: ProvisioningOrchestrator? =
+        provisioningOrchestrator ?: tokenProvider?.let {
+            BackendProvisioningRepository(
+                ProvisioningApiService.create(tokenProvider = tokenProvider)
+            )
+        }
 
     private val _provisioningState = mutableStateOf(ProvisioningViewState())
     val provisioningState = _provisioningState
@@ -211,8 +223,9 @@ class DeviceViewModel(
 
     fun provisionSelectedStrategy(credentials: WifiCredentials) {
         val metadata = lastDiscoveryMetadata ?: return
+        val device = _selectedDevice.value ?: return
         val selectedStrategyId = _provisioningState.value.selectedStrategy?.id ?: return
-        val strategy = provisioningStrategies.firstOrNull { it.id == selectedStrategyId } ?: return
+        val localStrategy = provisioningStrategies.firstOrNull { it.id == selectedStrategyId }
 
         provisioningJob?.cancel()
         _provisioningState.value = _provisioningState.value.copy(
@@ -221,9 +234,19 @@ class DeviceViewModel(
         )
 
         provisioningJob = viewModelScope.launch {
-            val result = strategy.provision(metadata, credentials) { progress ->
+            val result = backendProvisioningOrchestrator?.provision(
+                device = device,
+                metadata = metadata,
+                credentials = credentials,
+                strategyId = selectedStrategyId,
+            ) { progress ->
                 _provisioningState.value = _provisioningState.value.copy(progress = progress)
-            }
+            } ?: localStrategy?.provision(metadata, credentials) { progress ->
+                _provisioningState.value = _provisioningState.value.copy(progress = progress)
+            } ?: ProvisioningResult.Failure(
+                reason = ProvisioningFailureReason.UNKNOWN,
+                message = "No provisioning strategy available",
+            )
 
             _provisioningState.value = _provisioningState.value.copy(
                 progress = null,
