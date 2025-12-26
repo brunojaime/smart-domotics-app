@@ -7,10 +7,10 @@ import java.util.UUID
  * Supports publisher/subscriber pattern for device state changes
  */
 abstract class Device(
-    val id: String = UUID.randomUUID().toString(),
-    val name: String,
-    var status: DeviceStatus = DeviceStatus.OFFLINE
-) {
+    override val id: String = UUID.randomUUID().toString(),
+    override val name: String,
+    override var status: DeviceStatus = DeviceStatus.OFFLINE
+) : DeviceComponent {
     private val subscribers = mutableListOf<DeviceSubscriber>()
 
     init {
@@ -20,14 +20,14 @@ abstract class Device(
     /**
      * Subscribe to device state changes
      */
-    fun subscribe(subscriber: DeviceSubscriber) {
+    override fun subscribe(subscriber: DeviceSubscriber) {
         subscribers.add(subscriber)
     }
 
     /**
      * Unsubscribe from device state changes
      */
-    fun unsubscribe(subscriber: DeviceSubscriber) {
+    override fun unsubscribe(subscriber: DeviceSubscriber) {
         subscribers.remove(subscriber)
     }
 
@@ -41,7 +41,7 @@ abstract class Device(
     /**
      * Update device status and notify subscribers
      */
-    fun updateStatus(newStatus: DeviceStatus) {
+    override fun updateStatus(newStatus: DeviceStatus) {
         if (status != newStatus) {
             status = newStatus
             notifySubscribers()

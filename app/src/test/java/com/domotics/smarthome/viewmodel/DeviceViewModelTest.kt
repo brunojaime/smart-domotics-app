@@ -1,207 +1,148 @@
 package com.domotics.smarthome.viewmodel
 
-import app.cash.turbine.test
 import com.domotics.smarthome.entities.DeviceStatus
 import com.domotics.smarthome.entities.Lighting
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class DeviceViewModelTest {
 
     private lateinit var viewModel: DeviceViewModel
-    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        viewModel = DeviceViewModel()
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
+        viewModel = DeviceViewModel(startMqttBridgeOnInit = false)
     }
 
     @Test
-    fun `initial state should be empty list`() = runTest {
-        viewModel.devices.test {
-            val initialState = awaitItem()
-            assertTrue(initialState.isEmpty())
-        }
+    fun `initial state should be empty list`() {
+        assertTrue(viewModel.devices.value.isEmpty())
     }
 
     @Test
-    fun `addDevice should add device to list`() = runTest {
-        viewModel.devices.test {
-            // Skip initial empty state
-            awaitItem()
+    fun `addDevice should add device to list`() {
+        viewModel.addDevice("Living Room Light")
 
-            viewModel.addDevice("Living Room Light")
-
-            val devices = awaitItem()
-            assertEquals(1, devices.size)
-            assertEquals("Living Room Light", devices[0].name)
-            assertTrue(devices[0] is Lighting)
-        }
+        val devices = viewModel.devices.value
+        assertEquals(1, devices.size)
+        val deviceState = devices[0]
+        val device = deviceState.device as Lighting
+        assertEquals("Living Room Light", device.name)
+        assertEquals(DeviceStatus.OFF, deviceState.status)
+        assertFalse(deviceState.isOn)
+        assertEquals(0, deviceState.brightness)
     }
 
     @Test
-    fun `addDevice with blank name should not add device`() = runTest {
-        viewModel.devices.test {
-            awaitItem() // initial state
+    fun `addDevice with blank name should not add device`() {
+        viewModel.addDevice("")
+        viewModel.addDevice("   ")
 
-            viewModel.addDevice("")
-            viewModel.addDevice("   ")
-
-            // No new emissions should occur
-            expectNoEvents()
-        }
+        assertTrue(viewModel.devices.value.isEmpty())
     }
 
     @Test
-    fun `addDevice should create device with OFF status`() = runTest {
+    fun `addDevice should create device with OFF status`() {
         viewModel.addDevice("Kitchen Light")
 
-        viewModel.devices.test {
-            val devices = awaitItem()
-            assertEquals(DeviceStatus.OFF, devices[0].status)
-            assertTrue(devices[0] is Lighting)
-            assertFalse((devices[0] as Lighting).isLightOn())
-        }
+        val deviceState = viewModel.devices.value[0]
+        val device = deviceState.device as Lighting
+        assertEquals(DeviceStatus.OFF, deviceState.status)
+        assertFalse(device.isLightOn())
     }
 
     @Test
-    fun `removeDevice should remove device from list`() = runTest {
-        viewModel.devices.test {
-            awaitItem() // initial
+    fun `removeDevice should remove device from list`() {
+        viewModel.addDevice("Device 1")
+        val devicesAfterAdd = viewModel.devices.value
+        assertEquals(1, devicesAfterAdd.size)
 
-            viewModel.addDevice("Device 1")
-            val devicesAfterAdd = awaitItem()
-            assertEquals(1, devicesAfterAdd.size)
-
-            viewModel.removeDevice(devicesAfterAdd[0])
-            val devicesAfterRemove = awaitItem()
-            assertTrue(devicesAfterRemove.isEmpty())
-        }
+        viewModel.removeDevice(devicesAfterAdd[0])
+        assertTrue(viewModel.devices.value.isEmpty())
     }
 
     @Test
-    fun `removeDevice should only remove specific device`() = runTest {
-        viewModel.devices.test {
-            awaitItem() // initial
+    fun `removeDevice should only remove specific device`() {
+        viewModel.addDevice("Device 1")
+        viewModel.addDevice("Device 2")
+        val twoDevices = viewModel.devices.value
+        assertEquals(2, twoDevices.size)
 
-            viewModel.addDevice("Device 1")
-            awaitItem()
-
-            viewModel.addDevice("Device 2")
-            val twoDevices = awaitItem()
-            assertEquals(2, twoDevices.size)
-
-            viewModel.removeDevice(twoDevices[0])
-            val oneDevice = awaitItem()
-            assertEquals(1, oneDevice.size)
-            assertEquals("Device 2", oneDevice[0].name)
-        }
+        viewModel.removeDevice(twoDevices[0])
+        val oneDevice = viewModel.devices.value
+        assertEquals(1, oneDevice.size)
+        assertEquals("Device 2", (oneDevice[0].device as Lighting).name)
     }
 
     @Test
-    fun `toggleDevice should turn on lighting device`() = runTest {
-        viewModel.devices.test {
-            awaitItem() // initial
+    fun `toggleDevice should turn on lighting device`() {
+        viewModel.addDevice("Test Light")
+        val deviceState = viewModel.devices.value[0]
+        val device = deviceState.device as Lighting
 
-            viewModel.addDevice("Test Light")
-            val devices = awaitItem()
-            val device = devices[0] as Lighting
+        assertFalse(device.isLightOn())
+        assertEquals(DeviceStatus.OFF, deviceState.status)
 
-            assertFalse(device.isLightOn())
-            assertEquals(DeviceStatus.OFF, device.status)
+        viewModel.toggleDevice(deviceState)
+        val updatedState = viewModel.devices.value[0]
+        val updatedDevice = updatedState.device as Lighting
 
-            viewModel.toggleDevice(device)
-            val updatedDevices = awaitItem()
-            val updatedDevice = updatedDevices[0] as Lighting
-
-            assertTrue(updatedDevice.isLightOn())
-            assertEquals(DeviceStatus.ON, updatedDevice.status)
-            assertEquals(100, updatedDevice.getBrightness())
-        }
+        assertTrue(updatedDevice.isLightOn())
+        assertEquals(DeviceStatus.ON, updatedState.status)
+        assertEquals(100, updatedState.brightness)
     }
 
     @Test
-    fun `toggleDevice should turn off lighting device`() = runTest {
-        viewModel.devices.test {
-            awaitItem() // initial
+    fun `toggleDevice should turn off lighting device`() {
+        viewModel.addDevice("Test Light")
+        val deviceState = viewModel.devices.value[0]
 
-            viewModel.addDevice("Test Light")
-            val devices = awaitItem()
-            val device = devices[0] as Lighting
+        viewModel.toggleDevice(deviceState)
+        val onState = viewModel.devices.value[0]
+        assertTrue((onState.device as Lighting).isLightOn())
 
-            // Turn on first
-            viewModel.toggleDevice(device)
-            val onDevices = awaitItem()
-            val onDevice = onDevices[0] as Lighting
-            assertTrue(onDevice.isLightOn())
+        viewModel.toggleDevice(onState)
+        val offState = viewModel.devices.value[0]
+        val offDevice = offState.device as Lighting
 
-            // Turn off
-            viewModel.toggleDevice(onDevice)
-            val offDevices = awaitItem()
-            val offDevice = offDevices[0] as Lighting
-
-            assertFalse(offDevice.isLightOn())
-            assertEquals(DeviceStatus.OFF, offDevice.status)
-            assertEquals(0, offDevice.getBrightness())
-        }
+        assertFalse(offDevice.isLightOn())
+        assertEquals(DeviceStatus.OFF, offState.status)
+        assertEquals(0, offState.brightness)
     }
 
     @Test
-    fun `multiple devices can be added and managed independently`() = runTest {
-        viewModel.devices.test {
-            awaitItem() // initial
+    fun `multiple devices can be added and managed independently`() {
+        viewModel.addDevice("Light 1")
+        viewModel.addDevice("Light 2")
+        viewModel.addDevice("Light 3")
 
-            viewModel.addDevice("Light 1")
-            awaitItem()
+        val devices = viewModel.devices.value
+        assertEquals(3, devices.size)
+        assertEquals("Light 1", (devices[0].device as Lighting).name)
+        assertEquals("Light 2", (devices[1].device as Lighting).name)
+        assertEquals("Light 3", (devices[2].device as Lighting).name)
 
-            viewModel.addDevice("Light 2")
-            awaitItem()
+        viewModel.toggleDevice(devices[0])
+        val updated = viewModel.devices.value
+        val light1 = updated[0].device as Lighting
+        val light2 = updated[1].device as Lighting
 
-            viewModel.addDevice("Light 3")
-            val devices = awaitItem()
-
-            assertEquals(3, devices.size)
-            assertEquals("Light 1", devices[0].name)
-            assertEquals("Light 2", devices[1].name)
-            assertEquals("Light 3", devices[2].name)
-
-            // Toggle first device
-            viewModel.toggleDevice(devices[0])
-            val updated = awaitItem()
-            val light1 = updated[0] as Lighting
-            val light2 = updated[1] as Lighting
-
-            assertTrue(light1.isLightOn())
-            assertFalse(light2.isLightOn())
-        }
+        assertTrue(light1.isLightOn())
+        assertFalse(light2.isLightOn())
     }
 
     @Test
-    fun `devices should have unique IDs`() = runTest {
+    fun `devices should have unique IDs`() {
         viewModel.addDevice("Device 1")
         viewModel.addDevice("Device 2")
         viewModel.addDevice("Device 3")
 
-        viewModel.devices.test {
-            val devices = awaitItem()
-            val ids = devices.map { it.id }.toSet()
+        val devices = viewModel.devices.value
+        val ids = devices.map { it.device.id }.toSet()
 
-            assertEquals(3, ids.size) // All IDs are unique
-        }
+        assertEquals(3, ids.size)
     }
 }

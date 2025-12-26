@@ -1,15 +1,16 @@
 package com.domotics.smarthome.entities
 
+import java.util.UUID
+
 /**
- * Represents a geographical location with latitude, longitude, and optional reference
+ * Represents a logical location that contains one or more buildings
  */
 data class Location(
-    val latitude: Double,
-    val longitude: Double,
-    val reference: String? = null
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val buildingIds: List<String> = emptyList(),
 ) {
     init {
-        require(latitude in -90.0..90.0) { "Latitude must be between -90 and 90" }
-        require(longitude in -180.0..180.0) { "Longitude must be between -180 and 180" }
+        require(name.isNotBlank()) { "Location name cannot be blank" }
     }
 }

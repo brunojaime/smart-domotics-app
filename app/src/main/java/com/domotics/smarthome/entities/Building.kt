@@ -8,19 +8,19 @@ import java.util.UUID
 data class Building(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val location: Location,
-    val zones: MutableList<Zone> = mutableListOf(),
-    val description: String? = null
+    val locationId: String,
+    val zoneIds: MutableList<String> = mutableListOf(),
 ) {
     init {
         require(name.isNotBlank()) { "Building name cannot be blank" }
+        require(locationId.isNotBlank()) { "Building must belong to a location" }
     }
 
-    fun addZone(zone: Zone) {
-        zones.add(zone)
+    fun addZone(zoneId: String) {
+        zoneIds.add(zoneId)
     }
 
-    fun removeZone(zone: Zone) {
-        zones.remove(zone)
+    fun removeZone(zoneId: String) {
+        zoneIds.remove(zoneId)
     }
 }

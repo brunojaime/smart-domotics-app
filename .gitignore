@@ -9,7 +9,14 @@
 
 # Java class files
 *.class
-
+backend/.env
+backend/.venv/
+backend/.pytest_cache/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/services/__pycache__/
+backend/tests/__pycache__/
+**/__pycache__/
 # Generated files
 bin/
 gen/
@@ -34,7 +41,12 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
-
+backend/app/__pycache__/
+backend/__pycache__/
+backend/tests/__pycache__/
+backend/app/services/__pycache__/
+/backend/.venv
+.env
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
 .cxx/
