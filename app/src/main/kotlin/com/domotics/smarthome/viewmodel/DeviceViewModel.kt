@@ -15,6 +15,7 @@ import com.domotics.smarthome.data.device.PairingCredentials
 import com.domotics.smarthome.data.device.PairingService
 import com.domotics.smarthome.data.device.PairingServiceImpl
 import com.domotics.smarthome.data.device.PairingState
+import com.domotics.smarthome.entities.Device
 import com.domotics.smarthome.entities.DeviceStatus
 import com.domotics.smarthome.entities.Lighting
 import com.domotics.smarthome.data.mqtt.LightStatePayload
@@ -55,6 +56,7 @@ class DeviceViewModel(
         ): Boolean = true
     }),
     private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(),
+    private val startMqttBridgeOnInit: Boolean = true,
 ) : ViewModel() {
     private val _devices = MutableStateFlow<List<DeviceState>>(emptyList())
     val devices: StateFlow<List<DeviceState>> = _devices.asStateFlow()
@@ -89,7 +91,9 @@ class DeviceViewModel(
     private var lastDiscoveryMetadata: DiscoveryMetadata? = null
 
     init {
-        startMqttBridge()
+        if (startMqttBridgeOnInit) {
+            startMqttBridge()
+        }
         updateDiscovery(
             DiscoveryMetadata(
                 deviceSsid = "SmartBulb-Setup",
