@@ -12,6 +12,9 @@ class BaseUserRepository:
     def get_by_username(self, username: str) -> Optional[UserInDB]:
         raise NotImplementedError
 
+    def get_by_email(self, email: str) -> Optional[UserInDB]:
+        raise NotImplementedError
+
     def get_by_id(self, user_id: str) -> Optional[UserInDB]:
         raise NotImplementedError
 
@@ -23,13 +26,18 @@ class InMemoryUserRepository(BaseUserRepository):
     def __init__(self) -> None:
         self._by_id: dict[str, UserInDB] = {}
         self._by_username: dict[str, str] = {}
+        self._by_email: dict[str, str] = {}
         self._by_google_sub: dict[str, str] = {}
 
     def create_user(self, user: UserInDB) -> UserInDB:
         if user.username in self._by_username:
             raise ValueError("Username already exists")
+        if user.email and user.email in self._by_email:
+            raise ValueError("Email already exists")
         self._by_id[user.id] = user
         self._by_username[user.username] = user.id
+        if user.email:
+            self._by_email[user.email] = user.id
         if user.google_sub:
             self._by_google_sub[user.google_sub] = user.id
         return user
@@ -38,6 +46,11 @@ class InMemoryUserRepository(BaseUserRepository):
         if username not in self._by_username:
             return None
         return self._by_id[self._by_username[username]]
+
+    def get_by_email(self, email: str) -> Optional[UserInDB]:
+        if email not in self._by_email:
+            return None
+        return self._by_id[self._by_email[email]]
 
     def get_by_id(self, user_id: str) -> Optional[UserInDB]:
         return self._by_id.get(user_id)
@@ -100,6 +113,15 @@ class SQLiteUserRepository(BaseUserRepository):
         finally:
             conn.close()
 
+    def get_by_email(self, email: str) -> Optional[UserInDB]:
+        conn = self._connect()
+        try:
+            cur = conn.execute("SELECT id, username, email, hashed_password, google_sub FROM users WHERE email=?", (email,))
+            row = cur.fetchone()
+            return self._row_to_user(row) if row else None
+        finally:
+            conn.close()
+
     def get_by_id(self, user_id: str) -> Optional[UserInDB]:
         conn = self._connect()
         try:
@@ -120,4 +142,3 @@ class SQLiteUserRepository(BaseUserRepository):
             return self._row_to_user(row) if row else None
         finally:
             conn.close()
-

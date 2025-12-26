@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -24,9 +27,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.domotics.smarthome.viewmodel.CrudItem
 import com.domotics.smarthome.viewmodel.ManagedSection
@@ -50,6 +54,7 @@ fun AuthenticationScreen(
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -73,7 +78,15 @@ fun AuthenticationScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showPassword) "Hide password" else "Show password",
+                        )
+                    }
+                },
                 label = { Text("Password") },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -83,7 +96,7 @@ fun AuthenticationScreen(
             }
 
             Button(onClick = { onLogin(username, password) }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Login, contentDescription = null)
+                Icon(Icons.Default.Lock, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Sign in")
             }
@@ -161,7 +174,7 @@ fun CrudManagementScreen(
                     onValueChange = { description = it },
                     label = { Text("Details") },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(),
+                    colors = OutlinedTextFieldDefaults.colors(),
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

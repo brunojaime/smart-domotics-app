@@ -10,6 +10,7 @@ import com.domotics.smarthome.data.auth.AuthRepository
 import com.domotics.smarthome.data.auth.AuthTokens
 import com.domotics.smarthome.data.auth.AuthApiService
 import com.domotics.smarthome.data.auth.SecureTokenStorage
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,7 @@ class AuthViewModel(
     private val repository: AuthRepository,
     private val tokenStorage: SecureTokenStorage,
 ) : ViewModel() {
+    private val logTag = "AuthGoogle"
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
@@ -121,9 +123,13 @@ class AuthViewModel(
     }
 
     fun handleGoogleIdToken(idToken: String) {
+        Log.i(logTag, "Handling Google ID token (len=${idToken.length})")
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            runAuthOperation { repository.googleSignIn(idToken) }
+            runAuthOperation {
+                Log.i(logTag, "Calling backend Google sign-in")
+                repository.googleSignIn(idToken)
+            }
         }
     }
 
@@ -134,7 +140,10 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            runAuthOperation { repository.exchangeOAuthCode(code, state) }
+            runAuthOperation {
+                Log.i(logTag, "Exchanging OAuth code via backend")
+                repository.exchangeOAuthCode(code, state)
+            }
         }
     }
 
