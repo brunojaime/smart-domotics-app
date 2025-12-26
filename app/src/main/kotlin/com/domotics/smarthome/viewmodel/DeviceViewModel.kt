@@ -15,9 +15,11 @@ import com.domotics.smarthome.data.device.PairingCredentials
 import com.domotics.smarthome.data.device.PairingService
 import com.domotics.smarthome.data.device.PairingServiceImpl
 import com.domotics.smarthome.data.device.PairingState
-import com.domotics.smarthome.entities.Device
 import com.domotics.smarthome.entities.DeviceStatus
 import com.domotics.smarthome.entities.Lighting
+import com.domotics.smarthome.data.mqtt.LightStatePayload
+import com.domotics.smarthome.data.mqtt.MqttBrokerRepository
+import com.domotics.smarthome.data.mqtt.MqttConnectionState
 import com.domotics.smarthome.provisioning.BluetoothProvisioningStrategy
 import com.domotics.smarthome.provisioning.DiscoveryMetadata
 import com.domotics.smarthome.provisioning.OnboardingCodeProvisioningStrategy
@@ -52,9 +54,13 @@ class DeviceViewModel(
             credentials: PairingCredentials,
         ): Boolean = true
     }),
+    private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(),
 ) : ViewModel() {
     private val _devices = MutableStateFlow<List<DeviceState>>(emptyList())
     val devices: StateFlow<List<DeviceState>> = _devices.asStateFlow()
+
+    private val _connectionState = MutableStateFlow<MqttConnectionState>(MqttConnectionState.Disconnected)
+    val connectionState: StateFlow<MqttConnectionState> = _connectionState.asStateFlow()
 
     private val _discoveryState = MutableStateFlow<DiscoveryState>(DiscoveryState.Idle)
     val discoveryState: StateFlow<DiscoveryState> = _discoveryState.asStateFlow()
@@ -83,6 +89,7 @@ class DeviceViewModel(
     private var lastDiscoveryMetadata: DiscoveryMetadata? = null
 
     init {
+        startMqttBridge()
         updateDiscovery(
             DiscoveryMetadata(
                 deviceSsid = "SmartBulb-Setup",
@@ -93,6 +100,38 @@ class DeviceViewModel(
                 respondsToHeartbeat = true
             )
         )
+    }
+
+    private fun startMqttBridge() {
+        viewModelScope.launch {
+            runCatching {
+                mqttRepository.authenticateAndConnect()
+            }.onFailure { error ->
+                _connectionState.value = MqttConnectionState.Error(error.message)
+            }
+        }
+
+        viewModelScope.launch {
+            mqttRepository.connectionState.collectLatest { state ->
+                _connectionState.value = state
+            }
+        }
+
+        viewModelScope.launch {
+            mqttRepository.lightStateMessages().collectLatest { payload ->
+                applyRemoteState(payload)
+            }
+        }
+    }
+
+    fun reconnectMqtt() {
+        viewModelScope.launch {
+            runCatching {
+                mqttRepository.authenticateAndConnect()
+            }.onFailure { error ->
+                _connectionState.value = MqttConnectionState.Error(error.message)
+            }
+        }
     }
 
     fun addDevice(name: String) {
@@ -192,6 +231,12 @@ class DeviceViewModel(
                     it
                 }
             }
+
+            mqttRepository.publishLightCommand(
+                deviceId = device.id,
+                isOn = device.isLightOn(),
+                brightness = device.getBrightness(),
+            )
         }
     }
 
@@ -240,6 +285,31 @@ class DeviceViewModel(
                 onPaired?.invoke()
             }
         }
+    }
+
+    private fun applyRemoteState(payload: LightStatePayload) {
+        val existing = _devices.value.firstOrNull { it.device.id == payload.deviceId }
+        val lighting = (existing?.device as? Lighting)
+            ?: Lighting(id = payload.deviceId, name = existing?.device?.name ?: "Light ${payload.deviceId}")
+
+        val updatedBrightness = payload.brightness.coerceIn(0, 100)
+        if (payload.isOn) {
+            lighting.turnOn()
+            lighting.setBrightness(updatedBrightness)
+        } else {
+            lighting.setBrightness(0)
+            lighting.turnOff()
+        }
+
+        val updatedState = DeviceState(
+            device = lighting,
+            isOn = lighting.isLightOn(),
+            brightness = lighting.getBrightness(),
+            status = lighting.status,
+        )
+
+        val filtered = _devices.value.filterNot { it.device.id == payload.deviceId }
+        _devices.value = filtered + updatedState
     }
 }
 
