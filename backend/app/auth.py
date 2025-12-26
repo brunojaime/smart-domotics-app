@@ -13,7 +13,7 @@ from .models import User, UserInDB
 from .user_repository import BaseUserRepository, InMemoryUserRepository, SQLiteUserRepository
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 

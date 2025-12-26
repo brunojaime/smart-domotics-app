@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from ..container import zone_service
-from ..models import ZoneCreate, ZoneResponse, ZoneUpdate
+from ..dto.structures import ZoneCreateRequest, ZoneResponse, ZoneUpdateRequest
 
 router = APIRouter(
     prefix="/locations/{location_id}/buildings/{building_id}/zones",
@@ -18,7 +18,11 @@ async def list_zones(location_id: str, building_id: str) -> list[ZoneResponse]:
 
 
 @router.post("", response_model=ZoneResponse, status_code=status.HTTP_201_CREATED)
-async def create_zone(location_id: str, building_id: str, payload: ZoneCreate) -> ZoneResponse:
+async def create_zone(
+    location_id: str,
+    building_id: str,
+    payload: ZoneCreateRequest,
+) -> ZoneResponse:
     try:
         return zone_service.create_zone(location_id, building_id, payload)
     except KeyError as exc:
@@ -36,7 +40,12 @@ async def get_zone(location_id: str, building_id: str, zone_id: str) -> ZoneResp
 
 
 @router.put("/{zone_id}", response_model=ZoneResponse)
-async def update_zone(location_id: str, building_id: str, zone_id: str, payload: ZoneUpdate) -> ZoneResponse:
+async def update_zone(
+    location_id: str,
+    building_id: str,
+    zone_id: str,
+    payload: ZoneUpdateRequest,
+) -> ZoneResponse:
     try:
         return zone_service.update_zone(location_id, building_id, zone_id, payload)
     except KeyError as exc:

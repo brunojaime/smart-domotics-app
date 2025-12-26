@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
-from ..container import building_service, room_service, zone_device_service, zone_service
-from ..models import BuildingCreate, BuildingResponse, BuildingUpdate
+from ..container import building_service
+from ..dto.structures import BuildingCreateRequest, BuildingResponse, BuildingUpdateRequest
 
 router = APIRouter(prefix="/locations/{location_id}/buildings", tags=["buildings"])
 
@@ -15,7 +15,7 @@ async def list_buildings(location_id: str) -> list[BuildingResponse]:
 
 
 @router.post("", response_model=BuildingResponse, status_code=status.HTTP_201_CREATED)
-async def create_building(location_id: str, payload: BuildingCreate) -> BuildingResponse:
+async def create_building(location_id: str, payload: BuildingCreateRequest) -> BuildingResponse:
     try:
         return building_service.create_building(location_id, payload)
     except KeyError as exc:
@@ -33,7 +33,7 @@ async def get_building(location_id: str, building_id: str) -> BuildingResponse:
 
 
 @router.put("/{building_id}", response_model=BuildingResponse)
-async def update_building(location_id: str, building_id: str, payload: BuildingUpdate) -> BuildingResponse:
+async def update_building(location_id: str, building_id: str, payload: BuildingUpdateRequest) -> BuildingResponse:
     try:
         return building_service.update_building(location_id, building_id, payload)
     except KeyError as exc:
@@ -45,10 +45,6 @@ async def update_building(location_id: str, building_id: str, payload: BuildingU
 @router.delete("/{building_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_building(location_id: str, building_id: str) -> None:
     try:
-        for zone in zone_service.list_zones(location_id, building_id):
-            zone_device_service.delete_devices_for_zone(zone.id)
-        zone_service.delete_zones_for_building(building_id)
         building_service.delete_building(location_id, building_id)
-        room_service.delete_rooms_for_building(building_id)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

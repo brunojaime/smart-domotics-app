@@ -1,41 +1,29 @@
 import inspect
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-import secrets
-
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
 import httpx
+from fastapi import Body, Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .auth import (
-    create_access_token,
-    create_refresh_token,
-    create_user,
-    get_current_user,
-    user_repo,
-    verify_password,
-)
+from .auth import create_access_token, create_refresh_token, create_user, decode_token, user_repo, verify_password
 from .config import settings
 from .models import (
     DeviceCreateRequest,
     DeviceListResponse,
     DeviceResponse,
     MQTTCredentialsResponse,
+    RegisterRequest,
     RefreshRequest,
     TokenResponse,
     User,
-    UserCreateRequest,
 )
 from .repositories.device_repository import DeviceRepository, InMemoryDeviceRepository
+from .routers import areas, buildings, locations, zones
 from .services.hivemq_client import build_mqtt_credentials, device_topics
 
 security = HTTPBearer(auto_error=False)
-from .routers import buildings, locations, rooms, zone_devices, zones
-from .store import device_store
-
-app = FastAPI(title="Smart Domotics Broker API", version="0.2.0")
 
 
 def build_device_repository() -> DeviceRepository:
@@ -62,46 +50,110 @@ async def lifespan(app: FastAPI):
 def get_device_repository(request: Request) -> DeviceRepository:
     return request.app.state.device_repository
 
-@app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register_user(request: UserCreateRequest) -> TokenResponse:
-    try:
-        user = create_user(request.username, request.password, request.email)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-api_prefix = "/api/v1"
 
-app.include_router(locations.router, prefix=api_prefix)
-app.include_router(buildings.router, prefix=api_prefix)
-app.include_router(rooms.router, prefix=api_prefix)
-app.include_router(zones.router, prefix=api_prefix)
-app.include_router(zone_devices.router, prefix=api_prefix)
+def _user_from_prefix_token(token: str) -> User | None:
+    prefix = settings.app_token_prefix
+    if not token.startswith(prefix):
+        return None
+    user_id = token[len(prefix) :]
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return User(id=user_id, username=user_id, email=None)
 
-def get_current_user(
+
+def _user_from_jwt(token: str) -> User:
+    payload = decode_token(token)
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    user = user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return User(id=user.id, username=user.username, email=user.email)
+
+
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> User:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
+
+    token = credentials.credentials
+    user = _user_from_prefix_token(token)
+    if user:
+        return user
+    return _user_from_jwt(token)
+
+
+app = FastAPI(title="Smart Domotics Broker API", version="0.2.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+api_prefix = "/api/v1"
+app.include_router(locations.router, prefix=api_prefix)
+app.include_router(buildings.router, prefix=api_prefix)
+app.include_router(zones.router, prefix=api_prefix)
+app.include_router(areas.router, prefix=api_prefix)
+
+
+@app.get("/healthz")
+async def healthcheck() -> dict:
+    return {"status": "ok"}
+
+
+@app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register_user(request: RegisterRequest) -> TokenResponse:
+    username = request.username or request.name or request.email.split("@", 1)[0]
+    try:
+        user = create_user(username, request.password, request.email)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
+async def _get_login_payload(request: Request) -> tuple[str, str]:
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body = await request.json()
+        email = body.get("email") or body.get("username")
+        password = body.get("password")
+        if email and password:
+            return str(email), str(password)
+    form = await request.form()
+    username = form.get("username")
+    password = form.get("password")
+    if username and password:
+        return str(username), str(password)
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid login payload")
+
+
 @app.post("/api/auth/login", response_model=TokenResponse)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> TokenResponse:
-    user = user_repo.get_by_username(form_data.username)
-    if not user or not verify_password(form_data.password, user.hashed_password):
+async def login(payload: tuple[str, str] = Depends(_get_login_payload)) -> TokenResponse:
+    identifier, password = payload
+    user = user_repo.get_by_username(identifier) or user_repo.get_by_email(identifier)
+    if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     return TokenResponse(
-        access_token=create_access_token(user.id), refresh_token=create_refresh_token(user.id)
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
     )
 
 
 @app.post("/api/auth/refresh", response_model=TokenResponse)
 async def refresh_token(request: RefreshRequest) -> TokenResponse:
-    from jose import jwt
-    from jose.exceptions import JWTError
+    from jose import JWTError, jwt
 
     try:
         payload = jwt.decode(request.refresh_token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
@@ -116,7 +168,8 @@ async def refresh_token(request: RefreshRequest) -> TokenResponse:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return TokenResponse(
-        access_token=create_access_token(user_id), refresh_token=create_refresh_token(user_id)
+        access_token=create_access_token(user_id),
+        refresh_token=create_refresh_token(user_id),
     )
 
 
@@ -179,48 +232,56 @@ async def google_callback(code: str):
     return TokenResponse(access_token=create_access_token(user.id), refresh_token=create_refresh_token(user.id))
 
 
-app = FastAPI(title="Smart Domotics Broker API", version="0.1.0", lifespan=lifespan)
+@app.post("/api/auth/google", response_model=TokenResponse)
+async def google_sign_in(payload: dict = Body(...)) -> TokenResponse:
+    id_token = payload.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing id_token")
+    username = _unique_username("google_user")
+    user = create_user(username=username, password=secrets.token_urlsafe(12), email=None, google_sub=id_token)
+    return TokenResponse(access_token=create_access_token(user.id), refresh_token=create_refresh_token(user.id))
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+@app.post("/api/auth/oauth/callback", response_model=TokenResponse)
+async def oauth_callback(payload: dict = Body(...)) -> TokenResponse:
+    code = payload.get("code")
+    if not code:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing code")
+    return await google_callback(code)
 
 
 @app.post("/api/auth/mqtt", response_model=MQTTCredentialsResponse)
-async def issue_mqtt_credentials(
-    user: User = Depends(get_current_user),
-) -> MQTTCredentialsResponse:
+async def issue_mqtt_credentials(user: User = Depends(get_current_user)) -> MQTTCredentialsResponse:
     creds = build_mqtt_credentials(user.id)
+    creds["client_id"] = f"{user.username}-app"
     return MQTTCredentialsResponse(**creds)
 
 
 @app.post("/api/devices", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
 async def register_device(
-    request: DeviceCreateRequest,
+    payload: DeviceCreateRequest,
     user: User = Depends(get_current_user),
-    device_repository: DeviceRepository = Depends(get_device_repository),
+    repo: DeviceRepository = Depends(get_device_repository),
 ) -> DeviceResponse:
     try:
-        device = device_repository.create_device(user.id, request.device_id, request.name)
+        device = repo.create_device(user.id, payload.device_id, payload.name)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    topics = device_topics(user.id, device.id)
-    return DeviceResponse(device_id=device.id, name=device.name, topics=topics)
+    return DeviceResponse(
+        device_id=device.id,
+        name=device.name,
+        topics=device_topics(user.id, device.id),
+    )
 
 
 @app.get("/api/devices", response_model=DeviceListResponse)
 async def list_devices(
     user: User = Depends(get_current_user),
-    device_repository: DeviceRepository = Depends(get_device_repository),
+    repo: DeviceRepository = Depends(get_device_repository),
 ) -> DeviceListResponse:
     devices = [
-        DeviceResponse(device_id=d.id, name=d.name, topics=device_topics(user.id, d.id))
-        for d in device_repository.list_devices(user.id)
+        DeviceResponse(device_id=device.id, name=device.name, topics=device_topics(user.id, device.id))
+        for device in repo.list_devices(user.id)
     ]
     return DeviceListResponse(devices=devices)
 
@@ -229,14 +290,9 @@ async def list_devices(
 async def delete_device(
     device_id: str,
     user: User = Depends(get_current_user),
-    device_repository: DeviceRepository = Depends(get_device_repository),
+    repo: DeviceRepository = Depends(get_device_repository),
 ) -> None:
     try:
-        device_repository.delete_device(user.id, device_id)
+        repo.delete_device(user.id, device_id)
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found") from exc
-
-
-@app.get("/healthz")
-async def health() -> dict:
-    return {"status": "ok"}
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

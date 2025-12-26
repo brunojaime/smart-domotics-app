@@ -1,26 +1,39 @@
-from .repositories import BuildingRepository, LocationRepository, RoomRepository, ZoneDeviceRepository, ZoneRepository
+from .repositories import get_repository_provider
+from .services.area_service import AreaService
 from .services.building_service import BuildingService
 from .services.location_service import LocationService
-from .services.room_service import RoomService
-from .services.zone_device_service import ZoneDeviceService
 from .services.zone_service import ZoneService
 
-location_repository = LocationRepository()
-building_repository = BuildingRepository()
-room_repository = RoomRepository()
-zone_repository = ZoneRepository()
-zone_device_repository = ZoneDeviceRepository()
+repository_provider = get_repository_provider()
 
-location_service = LocationService(location_repository)
-building_service = BuildingService(location_repository, building_repository)
-room_service = RoomService(building_repository, room_repository)
-zone_service = ZoneService(building_repository, zone_repository)
-zone_device_service = ZoneDeviceService(zone_repository, zone_device_repository)
+location_service = LocationService(repository_provider.locations)
+building_service = BuildingService(repository_provider.locations, repository_provider.buildings)
+zone_service = ZoneService(
+    repository_provider.locations,
+    repository_provider.buildings,
+    repository_provider.zones,
+)
+area_service = AreaService(
+    repository_provider.locations,
+    repository_provider.buildings,
+    repository_provider.zones,
+    repository_provider.areas,
+)
 
 
 def reset_repositories() -> None:
-    location_repository.clear()
-    building_repository.clear()
-    room_repository.clear()
-    zone_repository.clear()
-    zone_device_repository.clear()
+    global repository_provider, location_service, building_service, zone_service, area_service
+    repository_provider = get_repository_provider()
+    location_service = LocationService(repository_provider.locations)
+    building_service = BuildingService(repository_provider.locations, repository_provider.buildings)
+    zone_service = ZoneService(
+        repository_provider.locations,
+        repository_provider.buildings,
+        repository_provider.zones,
+    )
+    area_service = AreaService(
+        repository_provider.locations,
+        repository_provider.buildings,
+        repository_provider.zones,
+        repository_provider.areas,
+    )

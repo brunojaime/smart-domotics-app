@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class User(BaseModel):
@@ -19,6 +19,20 @@ class UserCreateRequest(BaseModel):
     username: str = Field(..., min_length=3)
     password: str = Field(..., min_length=6)
     email: Optional[str] = None
+
+
+class RegisterRequest(BaseModel):
+    username: Optional[str] = None
+    name: Optional[str] = None
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
+
+    @validator("username", "name", pre=True)
+    def blank_to_none(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
 
 
 class TokenResponse(BaseModel):

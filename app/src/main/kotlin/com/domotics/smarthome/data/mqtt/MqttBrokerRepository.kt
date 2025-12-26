@@ -34,12 +34,20 @@ class MqttBrokerRepository(
         val dto = api.issueMqttCredentials(bearer)
         val credentials = dto.toDomain()
         Log.i("MqttBrokerRepository", "Received MQTT broker ${credentials.host}:${credentials.port}")
-        userId = token.removePrefix("user_")
+        userId = credentials.topics.firstNotNullOfOrNull { extractUserId(it) } ?: token.removePrefix("user_")
         _credentialsState.value = credentials
 
         mqttClient.connect(credentials) {
             subscribeToAllowedTopics(credentials, userId)
         }
+    }
+
+    private fun extractUserId(topic: String): String? {
+        val parts = topic.split("/")
+        if (parts.size >= 2 && parts[0] == "users" && parts[1].isNotBlank()) {
+            return parts[1]
+        }
+        return null
     }
 
     private fun subscribeToAllowedTopics(credentials: MqttCredentials, currentUserId: String?) {

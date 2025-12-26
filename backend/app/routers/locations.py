@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from ..container import location_service
-from ..models import LocationCreate, LocationResponse, LocationUpdate
+from ..dto.structures import LocationCreateRequest, LocationResponse, LocationUpdateRequest
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -12,7 +12,7 @@ async def list_locations() -> list[LocationResponse]:
 
 
 @router.post("", response_model=LocationResponse, status_code=status.HTTP_201_CREATED)
-async def create_location(payload: LocationCreate) -> LocationResponse:
+async def create_location(payload: LocationCreateRequest) -> LocationResponse:
     try:
         return location_service.create_location(payload)
     except ValueError as exc:
@@ -28,7 +28,7 @@ async def get_location(location_id: str) -> LocationResponse:
 
 
 @router.put("/{location_id}", response_model=LocationResponse)
-async def update_location(location_id: str, payload: LocationUpdate) -> LocationResponse:
+async def update_location(location_id: str, payload: LocationUpdateRequest) -> LocationResponse:
     try:
         return location_service.update_location(location_id, payload)
     except KeyError as exc:
