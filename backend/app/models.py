@@ -1,11 +1,34 @@
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 
 class User(BaseModel):
     id: str
+    username: str
+    email: Optional[str] = None
+
+
+class UserInDB(User):
+    hashed_password: str
+    google_sub: Optional[str] = None
+
+
+class UserCreateRequest(BaseModel):
+    username: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
+    email: Optional[str] = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class Device(BaseModel):
