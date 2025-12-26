@@ -14,6 +14,11 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        val apiBaseUrl = providers.environmentVariable("API_BASE_URL")
+            .orElse(providers.gradleProperty("API_BASE_URL"))
+            .orElse("http://10.0.2.2:8000")
+            .get()
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -41,6 +46,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 

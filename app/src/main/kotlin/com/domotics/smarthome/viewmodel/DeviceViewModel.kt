@@ -31,6 +31,7 @@ import com.domotics.smarthome.provisioning.ProvisioningStrategySummary
 import com.domotics.smarthome.provisioning.ProvisioningViewState
 import com.domotics.smarthome.provisioning.SoftApProvisioningStrategy
 import com.domotics.smarthome.provisioning.WifiCredentials
+import android.util.Log
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -111,6 +112,7 @@ class DeviceViewModel(
             runCatching {
                 mqttRepository.authenticateAndConnect()
             }.onFailure { error ->
+                Log.e("DeviceViewModel", "MQTT authentication/connect failed", error)
                 _connectionState.value = MqttConnectionState.Error(error.message)
             }
         }
@@ -133,6 +135,7 @@ class DeviceViewModel(
             runCatching {
                 mqttRepository.authenticateAndConnect()
             }.onFailure { error ->
+                Log.e("DeviceViewModel", "MQTT reconnect failed", error)
                 _connectionState.value = MqttConnectionState.Error(error.message)
             }
         }

@@ -1,5 +1,6 @@
 package com.domotics.smarthome.data.remote
 
+import com.domotics.smarthome.BuildConfig
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -8,7 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Header
 import retrofit2.http.POST
 
-private const val DEFAULT_BASE_URL = "http://10.0.2.2:8000"
+private val DEFAULT_BASE_URL = BuildConfig.API_BASE_URL
 private const val DEFAULT_APP_TOKEN = "user_demo"
 
 /**
@@ -62,6 +63,6 @@ data class MqttCredentialsDto(
 }
 
 object BrokerApiDefaults {
-    const val baseUrl: String = DEFAULT_BASE_URL
+    val baseUrl: String = DEFAULT_BASE_URL
     const val demoToken: String = DEFAULT_APP_TOKEN
 }
