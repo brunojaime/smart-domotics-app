@@ -12,13 +12,13 @@ from backend.app.store import device_store
 def override_env() -> None:
     os.environ.update(
         {
-            "APP_TOKEN_PREFIX": "user-",
-            "HIVEMQ_HOST": "broker.hivemq.cloud",
-            "HIVEMQ_PORT": "8883",
-            "HIVEMQ_USERNAME": "demo-user",
-            "HIVEMQ_PASSWORD": "demo-pass",
-            "MQTT_CREDENTIALS_TTL": "900",
-            "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:8080",
+            "APP_TOKEN_PREFIX": "user_",
+            "HIVEMQ_HOST": "localhost",
+            "HIVEMQ_PORT": "1883",
+            "HIVEMQ_USERNAME": "local_backend",
+            "HIVEMQ_PASSWORD": "local_backend_password",
+            "MQTT_CREDENTIALS_TTL": "86400",
+            "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:5173",
         }
     )
 
@@ -45,7 +45,7 @@ async def api_client() -> AsyncGenerator[httpx.AsyncClient, None]:
         device_store.clear()
 
 
-AUTH_HEADER = {"Authorization": "Bearer user-alice"}
+AUTH_HEADER = {"Authorization": "Bearer user_alice"}
 
 
 @pytest.mark.anyio
@@ -60,11 +60,11 @@ async def test_issue_mqtt_credentials(api_client: httpx.AsyncClient) -> None:
     response = await api_client.post("/api/auth/mqtt", headers=AUTH_HEADER)
     assert response.status_code == 200
     body = response.json()
-    assert body["host"] == "broker.hivemq.cloud"
-    assert body["username"] == "demo-user"
+    assert body["host"] == "localhost"
+    assert body["username"] == "local_backend"
     assert body["client_id"].startswith("alice-")
     assert body["topics"] == ["users/alice/devices/#"]
-    assert body["expires_in_seconds"] == 900
+    assert body["expires_in_seconds"] == 86400
 
 
 @pytest.mark.anyio
@@ -102,7 +102,7 @@ async def test_duplicate_device_rejected(api_client: httpx.AsyncClient) -> None:
     assert "already exists" in duplicate.json()["detail"]
 
 
-@pytest.mark.parametrize("token", [None, "", "otherprefix-user"])
+@pytest.mark.parametrize("token", [None, "", "otherprefix_user"])
 @pytest.mark.anyio
 async def test_auth_required(api_client: httpx.AsyncClient, token: str | None) -> None:
     headers = {"Authorization": f"Bearer {token}"} if token is not None else {}
