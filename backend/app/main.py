@@ -32,7 +32,7 @@ from .repositories.device_repository import DeviceRepository, InMemoryDeviceRepo
 from .services.hivemq_client import build_mqtt_credentials, device_topics
 
 security = HTTPBearer(auto_error=False)
-from .routers import buildings, locations, rooms
+from .routers import buildings, locations, rooms, zone_devices, zones
 from .store import device_store
 
 app = FastAPI(title="Smart Domotics Broker API", version="0.2.0")
@@ -73,6 +73,8 @@ api_prefix = "/api/v1"
 app.include_router(locations.router, prefix=api_prefix)
 app.include_router(buildings.router, prefix=api_prefix)
 app.include_router(rooms.router, prefix=api_prefix)
+app.include_router(zones.router, prefix=api_prefix)
+app.include_router(zone_devices.router, prefix=api_prefix)
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),

@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_location_building_room_flow(api_client: TestClient) -> None:
+def test_location_building_zone_device_flow(api_client: TestClient) -> None:
     location_resp = api_client.post("/api/v1/locations", json={"name": "Home"})
     assert location_resp.status_code == 201
     location = location_resp.json()
@@ -45,43 +45,68 @@ def test_location_building_room_flow(api_client: TestClient) -> None:
     assert updated_building.status_code == 200
     assert updated_building.json()["name"] == "Annex"
 
-    room_resp = api_client.post(
-        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/rooms",
-        json={"name": "Living Room"},
+    zone_resp = api_client.post(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones",
+        json={"name": "Ground Floor"},
     )
-    assert room_resp.status_code == 201
-    room = room_resp.json()
-    assert room["building_id"] == building["id"]
+    assert zone_resp.status_code == 201
+    zone = zone_resp.json()
+    assert zone["building_id"] == building["id"]
 
-    rooms_list = api_client.get(
-        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/rooms"
+    zones_list = api_client.get(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones"
     )
-    assert rooms_list.status_code == 200
-    assert len(rooms_list.json()) == 1
+    assert zones_list.status_code == 200
+    assert len(zones_list.json()) == 1
 
-    fetched_room = api_client.get(
-        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/rooms/{room['id']}"
+    fetched_zone = api_client.get(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}"
     )
-    assert fetched_room.status_code == 200
-    assert fetched_room.json()["name"] == "Living Room"
+    assert fetched_zone.status_code == 200
+    assert fetched_zone.json()["name"] == "Ground Floor"
 
-    updated_room = api_client.put(
-        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/rooms/{room['id']}",
-        json={"name": "Family Room"},
+    updated_zone = api_client.put(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}",
+        json={"name": "Main Floor"},
     )
-    assert updated_room.status_code == 200
-    assert updated_room.json()["name"] == "Family Room"
+    assert updated_zone.status_code == 200
+    assert updated_zone.json()["name"] == "Main Floor"
 
-    delete_room = api_client.delete(
-        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/rooms/{room['id']}"
+    device_resp = api_client.post(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}/devices",
+        json={"device_id": "light-1", "name": "Hall Light"},
     )
-    assert delete_room.status_code == 204
+    assert device_resp.status_code == 201
+    device = device_resp.json()
+    assert device["zone_id"] == zone["id"]
 
-    rooms_after_delete = api_client.get(
-        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/rooms"
+    devices_list = api_client.get(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}/devices"
     )
-    assert rooms_after_delete.status_code == 200
-    assert rooms_after_delete.json() == []
+    assert devices_list.status_code == 200
+    assert len(devices_list.json()) == 1
+
+    fetched_device = api_client.get(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}/devices/{device['device_id']}"
+    )
+    assert fetched_device.status_code == 200
+    assert fetched_device.json()["name"] == "Hall Light"
+
+    delete_device = api_client.delete(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}/devices/{device['device_id']}"
+    )
+    assert delete_device.status_code == 204
+
+    devices_after_delete = api_client.get(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}/devices"
+    )
+    assert devices_after_delete.status_code == 200
+    assert devices_after_delete.json() == []
+
+    delete_zone = api_client.delete(
+        f"/api/v1/locations/{location['id']}/buildings/{building['id']}/zones/{zone['id']}"
+    )
+    assert delete_zone.status_code == 204
 
     delete_building = api_client.delete(
         f"/api/v1/locations/{location['id']}/buildings/{building['id']}"
@@ -110,10 +135,10 @@ def test_parent_validation_errors(api_client: TestClient) -> None:
     location_resp = api_client.post("/api/v1/locations", json={"name": "Val"})
     location_id = location_resp.json()["id"]
 
-    room_resp = api_client.post(
-        f"/api/v1/locations/{location_id}/buildings/missing/rooms", json={"name": "Ghost"}
+    zone_resp = api_client.post(
+        f"/api/v1/locations/{location_id}/buildings/missing/zones", json={"name": "Ghost"}
     )
-    assert room_resp.status_code == 404
+    assert zone_resp.status_code == 404
 
 
 def test_update_requires_fields(api_client: TestClient) -> None:

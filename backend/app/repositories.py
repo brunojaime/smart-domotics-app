@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from .models import Building, Location, Room
+from .models import Building, Location, Room, Zone, Device
 
 
 class LocationRepository:
@@ -105,3 +105,70 @@ class RoomRepository:
 
     def clear(self) -> None:
         self._rooms.clear()
+
+
+class ZoneRepository:
+    def __init__(self) -> None:
+        self._zones: Dict[str, Dict[str, Zone]] = {}
+
+    def add(self, zone: Zone) -> Zone:
+        building_zones = self._zones.setdefault(zone.building_id, {})
+        if zone.id in building_zones:
+            raise ValueError("Zone already exists")
+        building_zones[zone.id] = zone
+        return zone
+
+    def list_by_building(self, building_id: str) -> List[Zone]:
+        return list(self._zones.get(building_id, {}).values())
+
+    def get(self, building_id: str, zone_id: str) -> Zone | None:
+        return self._zones.get(building_id, {}).get(zone_id)
+
+    def update(self, zone: Zone) -> Zone:
+        building_zones = self._zones.get(zone.building_id, {})
+        if zone.id not in building_zones:
+            raise KeyError("Zone not found")
+        building_zones[zone.id] = zone
+        return zone
+
+    def delete(self, building_id: str, zone_id: str) -> None:
+        building_zones = self._zones.get(building_id, {})
+        if zone_id not in building_zones:
+            raise KeyError("Zone not found")
+        del building_zones[zone_id]
+
+    def delete_by_building(self, building_id: str) -> None:
+        self._zones.pop(building_id, None)
+
+    def clear(self) -> None:
+        self._zones.clear()
+
+
+class ZoneDeviceRepository:
+    def __init__(self) -> None:
+        self._devices: Dict[str, Dict[str, Device]] = {}
+
+    def add(self, device: Device) -> Device:
+        zone_devices = self._devices.setdefault(device.zone_id or "", {})
+        if device.id in zone_devices:
+            raise ValueError("Device already exists")
+        zone_devices[device.id] = device
+        return device
+
+    def list_by_zone(self, zone_id: str) -> List[Device]:
+        return list(self._devices.get(zone_id, {}).values())
+
+    def get(self, zone_id: str, device_id: str) -> Device | None:
+        return self._devices.get(zone_id, {}).get(device_id)
+
+    def delete(self, zone_id: str, device_id: str) -> None:
+        zone_devices = self._devices.get(zone_id, {})
+        if device_id not in zone_devices:
+            raise KeyError("Device not found")
+        del zone_devices[device_id]
+
+    def delete_by_zone(self, zone_id: str) -> None:
+        self._devices.pop(zone_id, None)
+
+    def clear(self) -> None:
+        self._devices.clear()

@@ -34,18 +34,21 @@ class RefreshRequest(BaseModel):
 class Device(BaseModel):
     id: str
     name: str
-    owner_id: str
+    owner_id: str | None = None
+    zone_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class DeviceCreateRequest(BaseModel):
     device_id: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
+    zone_id: str | None = None
 
 
 class DeviceResponse(BaseModel):
     device_id: str
     name: str
+    zone_id: str | None = None
     topics: List[str]
 
 
@@ -114,3 +117,32 @@ class RoomUpdate(BaseModel):
 
 class RoomResponse(Room):
     pass
+
+
+class Zone(BaseModel):
+    id: str
+    name: str
+    building_id: str
+
+
+class ZoneCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class ZoneUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
+class ZoneResponse(Zone):
+    pass
+
+
+class ZoneDeviceCreate(BaseModel):
+    device_id: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+
+
+class ZoneDeviceResponse(BaseModel):
+    device_id: str
+    name: str
+    zone_id: str
