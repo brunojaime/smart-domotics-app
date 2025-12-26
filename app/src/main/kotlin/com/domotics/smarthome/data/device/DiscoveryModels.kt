@@ -1,12 +1,14 @@
 package com.domotics.smarthome.data.device
 
 import com.domotics.smarthome.entities.Device
+import com.domotics.smarthome.provisioning.DiscoveryMetadata
 
 /** Represents a device discovered during scanning. */
 data class DiscoveredDevice(
     val id: String,
     val name: String,
     val capabilities: List<String> = emptyList(),
+    val metadata: DiscoveryMetadata = DiscoveryMetadata(),
 )
 
 sealed class DiscoveryState {
@@ -16,6 +18,11 @@ sealed class DiscoveryState {
     data object NoResults : DiscoveryState()
     data class Error(val message: String) : DiscoveryState()
 }
+
+data class RadioState(
+    val wifiEnabled: Boolean = true,
+    val bluetoothEnabled: Boolean = true,
+)
 
 data class PairingCredentials(
     val ssid: String? = null,
