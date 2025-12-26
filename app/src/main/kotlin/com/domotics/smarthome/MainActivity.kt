@@ -5,12 +5,61 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.HomeWork
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.SpaceDashboard
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.domotics.smarthome.notifications.NotificationViewModel
+import com.domotics.smarthome.ui.devices.DeviceListScreen
+import com.domotics.smarthome.ui.home.AuthGate
+import com.domotics.smarthome.ui.home.AuthenticationScreen
+import com.domotics.smarthome.ui.home.CrudManagementScreen
+import com.domotics.smarthome.ui.home.ProfileScreen
+import com.domotics.smarthome.ui.theme.SmartDomoticsTheme
+import com.domotics.smarthome.viewmodel.AppDestination
+import com.domotics.smarthome.viewmodel.AppViewModel
+import com.domotics.smarthome.viewmodel.DeviceViewModel
+import com.domotics.smarthome.viewmodel.ManagedSection
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +116,195 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DomoticsApp(
+    viewModel: DeviceViewModel = viewModel(),
+    notificationViewModel: NotificationViewModel = viewModel(),
+    appViewModel: AppViewModel = viewModel(),
+) {
+    val isAuthenticated by appViewModel.isAuthenticated.collectAsState()
+    val username by appViewModel.username.collectAsState()
+    val authError by appViewModel.authError.collectAsState()
+    val selectedDestination by appViewModel.selectedDestination.collectAsState()
+    val buildings by appViewModel.buildings.collectAsState()
+    val locations by appViewModel.locations.collectAsState()
+    val zones by appViewModel.zones.collectAsState()
+    val sensors by appViewModel.sensors.collectAsState()
+    val users by appViewModel.users.collectAsState()
+    val accessControls by appViewModel.accessControls.collectAsState()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    val drawerItems = listOf(
+        DrawerEntry(AppDestination.Devices, Icons.Default.Sensors),
+        DrawerEntry(AppDestination.Buildings, Icons.Default.HomeWork),
+        DrawerEntry(AppDestination.Locations, Icons.Default.Route),
+        DrawerEntry(AppDestination.Zones, Icons.Default.SpaceDashboard),
+        DrawerEntry(AppDestination.Sensors, Icons.Default.Devices),
+        DrawerEntry(AppDestination.Users, Icons.Default.People),
+        DrawerEntry(AppDestination.Access, Icons.Default.Security),
+        DrawerEntry(AppDestination.Profile, Icons.Default.AccountCircle),
+        DrawerEntry(AppDestination.Auth, Icons.Default.Lock),
+    )
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Text(
+                    text = "Smart Domotics",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+                drawerItems.forEach { entry ->
+                    NavigationDrawerItem(
+                        label = { Text(entry.destination.label) },
+                        selected = entry.destination == selectedDestination,
+                        onClick = {
+                            appViewModel.selectDestination(entry.destination)
+                            scope.launch { drawerState.close() }
+                        },
+                        icon = { Icon(entry.icon, contentDescription = null) },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                    )
+                }
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "Smart Domotics",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            Text(
+                                text = "Connected living, simplified",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            scope.launch { drawerState.open() }
+                        }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Open navigation")
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
+            },
+        ) { innerPadding ->
+            when {
+                selectedDestination == AppDestination.Auth -> {
+                    Box(modifier = Modifier.padding(innerPadding)) {
+                        AuthenticationScreen(
+                            isAuthenticated = isAuthenticated,
+                            errorMessage = authError,
+                            onLogin = { user, pass -> appViewModel.login(user, pass) },
+                            onLogout = { appViewModel.logout() },
+                        )
+                    }
+                }
+
+                !isAuthenticated && selectedDestination.requiresAuth -> {
+                    Box(modifier = Modifier.padding(innerPadding)) {
+                        AuthGate { appViewModel.selectDestination(AppDestination.Auth) }
+                    }
+                }
+
+                else -> {
+                    when (selectedDestination) {
+                        AppDestination.Devices -> DeviceListScreen(
+                            viewModel = viewModel,
+                            notificationViewModel = notificationViewModel,
+                            showTopBar = false,
+                            contentPadding = innerPadding,
+                        )
+
+                        AppDestination.Buildings -> Box(modifier = Modifier.padding(innerPadding)) {
+                            CrudManagementScreen(
+                                section = ManagedSection.BUILDING,
+                                records = buildings,
+                                onSave = { id, name, description ->
+                                    appViewModel.saveRecord(ManagedSection.BUILDING, id, name, description)
+                                },
+                                onDelete = { appViewModel.deleteRecord(ManagedSection.BUILDING, it) },
+                            )
+                        }
+
+                        AppDestination.Locations -> Box(modifier = Modifier.padding(innerPadding)) {
+                            CrudManagementScreen(
+                                section = ManagedSection.LOCATION,
+                                records = locations,
+                                onSave = { id, name, description ->
+                                    appViewModel.saveRecord(ManagedSection.LOCATION, id, name, description)
+                                },
+                                onDelete = { appViewModel.deleteRecord(ManagedSection.LOCATION, it) },
+                            )
+                        }
+
+                        AppDestination.Zones -> Box(modifier = Modifier.padding(innerPadding)) {
+                            CrudManagementScreen(
+                                section = ManagedSection.ZONE,
+                                records = zones,
+                                onSave = { id, name, description ->
+                                    appViewModel.saveRecord(ManagedSection.ZONE, id, name, description)
+                                },
+                                onDelete = { appViewModel.deleteRecord(ManagedSection.ZONE, it) },
+                            )
+                        }
+
+                        AppDestination.Sensors -> Box(modifier = Modifier.padding(innerPadding)) {
+                            CrudManagementScreen(
+                                section = ManagedSection.SENSOR,
+                                records = sensors,
+                                onSave = { id, name, description ->
+                                    appViewModel.saveRecord(ManagedSection.SENSOR, id, name, description)
+                                },
+                                onDelete = { appViewModel.deleteRecord(ManagedSection.SENSOR, it) },
+                            )
+                        }
+
+                        AppDestination.Users -> Box(modifier = Modifier.padding(innerPadding)) {
+                            CrudManagementScreen(
+                                section = ManagedSection.USER,
+                                records = users,
+                                onSave = { id, name, description ->
+                                    appViewModel.saveRecord(ManagedSection.USER, id, name, description)
+                                },
+                                onDelete = { appViewModel.deleteRecord(ManagedSection.USER, it) },
+                            )
+                        }
+
+                        AppDestination.Access -> Box(modifier = Modifier.padding(innerPadding)) {
+                            CrudManagementScreen(
+                                section = ManagedSection.ACCESS,
+                                records = accessControls,
+                                onSave = { id, name, description ->
+                                    appViewModel.saveRecord(ManagedSection.ACCESS, id, name, description)
+                                },
+                                onDelete = { appViewModel.deleteRecord(ManagedSection.ACCESS, it) },
+                            )
+                        }
+
+                        AppDestination.Profile -> Box(modifier = Modifier.padding(innerPadding)) {
+                            ProfileScreen(
+                                username = username,
+                                onLogout = { appViewModel.logout() },
+                            )
+                        }
+
+                        AppDestination.Auth -> Unit
+                    }
+                }
+            }
     authViewModel: AuthViewModel,
     deviceViewModel: DeviceViewModel,
     notificationViewModel: NotificationViewModel,
@@ -145,6 +383,7 @@ private fun rememberGoogleClient(): GoogleSignInClient {
     }
 }
 
+private data class DrawerEntry(val destination: AppDestination, val icon: ImageVector)
 private object Routes {
     const val Login = "auth/login"
     const val Register = "auth/register"

@@ -33,6 +33,9 @@ import com.domotics.smarthome.viewmodel.DeviceViewModel
 fun DeviceListScreen(
     viewModel: DeviceViewModel,
     notificationViewModel: NotificationViewModel,
+    modifier: Modifier = Modifier,
+    showTopBar: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(),
 ) {
     val devices by viewModel.devices.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
@@ -47,8 +50,11 @@ fun DeviceListScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
-            TopAppBar(title = { Text("Smart Domotics") })
+            if (showTopBar) {
+                TopAppBar(title = { Text("Smart Domotics") })
+            }
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -62,6 +68,7 @@ fun DeviceListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(contentPadding)
                 .padding(paddingValues)
                 .padding(16.dp),
         ) {
