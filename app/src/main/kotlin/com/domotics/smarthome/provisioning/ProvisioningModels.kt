@@ -11,7 +11,13 @@ data class DiscoveryMetadata(
     val supportsOnboardingCode: Boolean = false,
     val deviceApReachable: Boolean = true,
     val expectedWifiPassword: String? = null,
-    val respondsToHeartbeat: Boolean = true
+    val respondsToHeartbeat: Boolean = true,
+    /**
+     * True when the discovery result is simulated/demo data rather than the result of
+     * an actual radio scan. Use this to warn users that onboarding will not contact
+     * physical hardware until real scanners are supplied.
+     */
+    val simulated: Boolean = false,
 )
 
 /**
