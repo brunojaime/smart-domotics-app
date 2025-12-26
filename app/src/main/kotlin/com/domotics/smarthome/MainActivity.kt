@@ -56,6 +56,7 @@ import com.domotics.smarthome.ui.home.AuthGate
 import com.domotics.smarthome.ui.home.CrudManagementScreen
 import com.domotics.smarthome.ui.home.ProfileScreen
 import com.domotics.smarthome.ui.theme.SmartDomoticsTheme
+import com.domotics.smarthome.ui.home.SelectionDropdown
 import com.domotics.smarthome.viewmodel.AppDestination
 import com.domotics.smarthome.viewmodel.AppViewModel
 import com.domotics.smarthome.viewmodel.AuthViewModel
@@ -119,6 +120,9 @@ fun DomoticsApp(
     val buildings by appViewModel.buildings.collectAsState()
     val locations by appViewModel.locations.collectAsState()
     val zones by appViewModel.zones.collectAsState()
+    val selectedLocationId by appViewModel.selectedLocationId.collectAsState()
+    val selectedBuildingId by appViewModel.selectedBuildingId.collectAsState()
+    val crudError by appViewModel.crudError.collectAsState()
     val sensors by appViewModel.sensors.collectAsState()
     val users by appViewModel.users.collectAsState()
     val accessControls by appViewModel.accessControls.collectAsState()
@@ -230,6 +234,15 @@ fun DomoticsApp(
                                     appViewModel.saveRecord(ManagedSection.BUILDING, id, name, description)
                                 },
                                 onDelete = { appViewModel.deleteRecord(ManagedSection.BUILDING, it) },
+                                errorMessage = crudError,
+                                contextHeader = {
+                                    SelectionDropdown(
+                                        label = "Location",
+                                        options = locations,
+                                        selectedId = selectedLocationId,
+                                        onSelected = appViewModel::selectLocation,
+                                    )
+                                },
                             )
                         }
 
@@ -241,6 +254,7 @@ fun DomoticsApp(
                                     appViewModel.saveRecord(ManagedSection.LOCATION, id, name, description)
                                 },
                                 onDelete = { appViewModel.deleteRecord(ManagedSection.LOCATION, it) },
+                                errorMessage = crudError,
                             )
                         }
 
@@ -252,6 +266,23 @@ fun DomoticsApp(
                                     appViewModel.saveRecord(ManagedSection.ZONE, id, name, description)
                                 },
                                 onDelete = { appViewModel.deleteRecord(ManagedSection.ZONE, it) },
+                                errorMessage = crudError,
+                                contextHeader = {
+                                    Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                                        SelectionDropdown(
+                                            label = "Location",
+                                            options = locations,
+                                            selectedId = selectedLocationId,
+                                            onSelected = appViewModel::selectLocation,
+                                        )
+                                        SelectionDropdown(
+                                            label = "Building",
+                                            options = buildings,
+                                            selectedId = selectedBuildingId,
+                                            onSelected = appViewModel::selectBuilding,
+                                        )
+                                    }
+                                },
                             )
                         }
 

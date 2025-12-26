@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.menuAnchor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -140,6 +141,8 @@ fun CrudManagementScreen(
     records: List<CrudItem>,
     onSave: (String?, String, String) -> Unit,
     onDelete: (String) -> Unit,
+    errorMessage: String? = null,
+    contextHeader: (@Composable () -> Unit)? = null,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var name by remember { mutableStateOf("") }
@@ -159,6 +162,8 @@ fun CrudManagementScreen(
     ) {
         Text(section.label, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Add or edit ${section.label.lowercase()}.")
+        contextHeader?.invoke()
+        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -211,6 +216,50 @@ fun CrudManagementScreen(
                         description = record.description
                     },
                     onDelete = { onDelete(record.id) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectionDropdown(
+    label: String,
+    options: List<CrudItem>,
+    selectedId: String?,
+    onSelected: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = options.firstOrNull { it.id == selectedId }
+
+    androidx.compose.material3.ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected?.name ?: "",
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            readOnly = true,
+            trailingIcon = {
+                androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+        )
+        androidx.compose.material3.ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(option.name) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option.id)
+                    },
                 )
             }
         }
