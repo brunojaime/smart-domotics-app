@@ -2,17 +2,19 @@ import importlib
 import os
 from typing import AsyncGenerator
 
-import pytest
 import httpx
+import pytest
 from httpx import ASGITransport
-
-from backend.app.store import device_store
 
 
 def override_env() -> None:
     os.environ.update(
         {
             "APP_TOKEN_PREFIX": "user_",
+            "APP_JWT_SECRET": "test_jwt_secret",
+            "APP_JWT_EXPIRY_SECONDS": "3600",
+            "APP_DATABASE_BACKEND": "memory",
+            "APP_OAUTH_CLIENT_IDS": "{}",
             "HIVEMQ_HOST": "localhost",
             "HIVEMQ_PORT": "1883",
             "HIVEMQ_USERNAME": "local_backend",
@@ -25,13 +27,13 @@ def override_env() -> None:
 
 def client() -> httpx.AsyncClient:
     override_env()
-    import backend.app.config as config
+    import backend.app.settings as config
 
     importlib.reload(config)
     import backend.app.main as main
 
     importlib.reload(main)
-    transport = ASGITransport(app=main.app)
+    transport = ASGITransport(app=main.app, lifespan="on")
     return httpx.AsyncClient(transport=transport, base_url="http://test")
 
 
@@ -42,7 +44,14 @@ async def api_client() -> AsyncGenerator[httpx.AsyncClient, None]:
         yield c
     finally:
         await c.aclose()
-        device_store.clear()
+        try:
+            from backend.app.main import app
+
+            device_repository = app.state.device_repository
+            if hasattr(device_repository, "clear"):
+                device_repository.clear()
+        except Exception:
+            pass
 
 
 AUTH_HEADER = {"Authorization": "Bearer user_alice"}
