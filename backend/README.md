@@ -7,18 +7,23 @@ A lightweight FastAPI service that issues scoped MQTT credentials and manages de
 - Keep local changes on this branch and push a same-named branch remotely when ready to open a PR.
 
 ## Quickstart
-1. Create `.env` from the sample:
+1. Start HiveMQ locally (MQTT on `1883`, Control Center on `8080`):
    ```bash
-   cp .env.example .env
+   docker compose -f backend/docker-compose.yml up -d
+   # Visit http://localhost:8080 to confirm HiveMQ is up
    ```
-2. Install deps and run locally:
+2. Create `.env` from the sample (pre-filled for local dev):
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+3. Install deps and run locally:
    ```bash
    make -C backend install
    make -C backend dev
    ```
-3. Call the API with an app token (prefix defaults to `user-`):
+4. Call the API with an app token (prefix defaults to `user_`):
    ```bash
-   curl -H "Authorization: Bearer user-demo" http://localhost:8000/healthz
+   curl -H "Authorization: Bearer user_demo" http://localhost:8000/healthz
    ```
 
 ### Useful endpoints
@@ -32,7 +37,7 @@ Fetch credentials from the API, then connect with your MQTT client using the ret
 
 ```bash
 # Get creds (local backend)
-curl -s -H "Authorization: Bearer user-demo" \
+curl -s -H "Authorization: Bearer user_demo" \
   http://localhost:8000/api/auth/mqtt | jq .
 ```
 
@@ -47,9 +52,9 @@ topics:   publish/subscribe within these scopes
 
 ### Configuration
 Set these environment variables (see `.env.example`):
-- `HIVEMQ_HOST`, `HIVEMQ_PORT`, `HIVEMQ_USERNAME`, `HIVEMQ_PASSWORD`
-- `APP_TOKEN_PREFIX` (default `user-`), `APP_JWT_SECRET`
-- `MQTT_CREDENTIALS_TTL`
-- `CORS_ALLOWED_ORIGINS` (comma-separated origins for the app frontend, e.g., `http://localhost:3000`)
+- `HIVEMQ_HOST=localhost`, `HIVEMQ_PORT=1883`, `HIVEMQ_USERNAME=local_backend`, `HIVEMQ_PASSWORD=local_backend_password`
+- `APP_TOKEN_PREFIX=user_`, `APP_JWT_SECRET=dev_super_secret_change_later`
+- `MQTT_CREDENTIALS_TTL=86400`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173` (comma-separated origins for the app frontend)
 
-The API uses a simple token convention (`user-<id>`) for now; swap `get_current_user` with your real auth validation when ready.
+The API uses a simple token convention (`user_<id>`) for now; swap `get_current_user` with your real auth validation when ready.
