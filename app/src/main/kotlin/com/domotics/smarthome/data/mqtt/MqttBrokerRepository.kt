@@ -1,10 +1,11 @@
 package com.domotics.smarthome.data.mqtt
 
+import android.util.Log
+import com.domotics.smarthome.data.auth.TokenProvider
 import com.domotics.smarthome.data.remote.BrokerApiDefaults
 import com.domotics.smarthome.data.remote.BrokerApiService
 import com.domotics.smarthome.data.remote.MqttCredentialsDto
 import com.google.gson.Gson
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapNotNull
 
 class MqttBrokerRepository(
-    private val api: BrokerApiService = BrokerApiService.create(BrokerApiDefaults.baseUrl),
+    private val tokenProvider: TokenProvider? = null,
+    private val api: BrokerApiService = BrokerApiService.create(BrokerApiDefaults.baseUrl, tokenProvider),
     private val mqttClient: DomoticsMqttClient = DomoticsMqttClient(),
     private val gson: Gson = Gson(),
 ) {
@@ -25,13 +27,14 @@ class MqttBrokerRepository(
 
     private var userId: String? = null
 
-    suspend fun authenticateAndConnect(appToken: String = BrokerApiDefaults.demoToken) {
-        val bearer = "Bearer $appToken"
+    suspend fun authenticateAndConnect(appToken: String? = null) {
+        val token = appToken ?: tokenProvider?.currentToken() ?: BrokerApiDefaults.demoToken
+        val bearer = "Bearer $token"
         Log.i("MqttBrokerRepository", "Requesting MQTT credentials from ${BrokerApiDefaults.baseUrl}")
         val dto = api.issueMqttCredentials(bearer)
         val credentials = dto.toDomain()
         Log.i("MqttBrokerRepository", "Received MQTT broker ${credentials.host}:${credentials.port}")
-        userId = appToken.removePrefix("user_")
+        userId = token.removePrefix("user_")
         _credentialsState.value = credentials
 
         mqttClient.connect(credentials) {

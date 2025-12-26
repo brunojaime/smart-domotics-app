@@ -19,6 +19,11 @@ android {
             .orElse("http://10.0.2.2:8000")
             .get()
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        val googleClientId = providers.environmentVariable("GOOGLE_CLIENT_ID")
+            .orElse(providers.gradleProperty("GOOGLE_CLIENT_ID"))
+            .orElse("demo-web-client-id.apps.googleusercontent.com")
+            .get()
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -73,6 +78,10 @@ dependencies {
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.9.6")
+
+    // Security and identity
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
