@@ -18,6 +18,14 @@ An Android application for smart home and industrial automation control, built w
 
 ## Development Setup
 
+### Environment
+
+- Copy the backend sample environment and customize secrets as needed:
+
+  ```bash
+  cp backend/.env.example backend/.env
+  ```
+
 ### VS Code
 
 1. Install the recommended extensions:
@@ -33,6 +41,14 @@ An Android application for smart home and industrial automation control, built w
    ```bash
    ./gradlew build
    ```
+
+### Make targets
+
+The repository Makefile provides shortcuts for common workflows:
+
+- `make backend-dev`: start the FastAPI backend using the backend Makefile defaults.
+- `make backend-dev-sqlite`: run SQLite-based development with optional Alembic migrations (if configured) before starting the backend.
+- `make frontend`: assemble the Android app debug build.
 
 ### Android Studio (Alternative)
 
