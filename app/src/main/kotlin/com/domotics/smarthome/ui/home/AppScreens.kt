@@ -246,7 +246,9 @@ fun SelectionDropdown(
                 .clickable { expanded = true },
             readOnly = true,
             trailingIcon = {
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
             },
         )
         DropdownMenu(
