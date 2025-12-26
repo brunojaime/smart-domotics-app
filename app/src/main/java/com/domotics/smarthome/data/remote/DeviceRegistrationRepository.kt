@@ -2,10 +2,10 @@ package com.domotics.smarthome.data.remote
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
-import kotlinx.coroutines.delay
 
 sealed interface DeviceRegistrationResult {
     data class Success(val metadata: DeviceMetadata) : DeviceRegistrationResult
@@ -22,6 +22,9 @@ class DeviceRegistrationRepository(
 ) {
 
     suspend fun registerDevice(
+        locationId: String,
+        buildingId: String,
+        zoneId: String,
         request: DeviceRegistrationRequest,
         maxRetries: Int = 3,
         initialDelayMs: Long = 500L
@@ -31,7 +34,7 @@ class DeviceRegistrationRepository(
 
         repeat(maxRetries + 1) { attempt ->
             try {
-                val response = apiService.registerDevice(request)
+                val response = apiService.registerDevice(locationId, buildingId, zoneId, request)
                 if (response.isSuccessful) {
                     val body = response.body()
                         ?: return@withContext DeviceRegistrationResult.UnexpectedFailure(
@@ -40,11 +43,8 @@ class DeviceRegistrationRepository(
 
                     val metadata = DeviceMetadata(
                         deviceId = body.deviceId,
-                        serialNumber = body.serialNumber,
-                        macAddress = body.macAddress,
-                        accessToken = body.accessToken,
                         name = body.name,
-                        ownerId = body.ownerId
+                        zoneId = body.zoneId,
                     )
                     localDataSource.saveDevice(metadata)
                     localDataSource.refreshDevices()

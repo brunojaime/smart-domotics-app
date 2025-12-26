@@ -4,7 +4,6 @@ import com.domotics.smarthome.entities.Area
 import com.domotics.smarthome.entities.Building
 import com.domotics.smarthome.entities.Location
 import com.domotics.smarthome.entities.Zone
-import com.domotics.smarthome.entities.ZoneType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -12,124 +11,87 @@ import org.junit.Test
 class DtoMappingTest {
 
     @Test
-    fun `location dto enforces coordinate ranges`() {
+    fun `location dto maps to domain`() {
+        val dto = LocationDTO(id = "loc-1", name = "Campus", buildingIds = listOf("b1"))
+
+        val domain = dto.toDomain()
+        assertEquals("Campus", domain.name)
+        assertEquals(listOf("b1"), domain.buildingIds)
+    }
+
+    @Test
+    fun `area create request validates parent`() {
         assertThrows(IllegalArgumentException::class.java) {
-            LocationDTO(latitude = 95.0, longitude = 10.0)
+            AreaCreateRequest(zoneId = "", name = "Area")
         }
         assertThrows(IllegalArgumentException::class.java) {
-            LocationDTO(latitude = 10.0, longitude = 200.0)
+            AreaCreateRequest(zoneId = "zone-1", name = "")
         }
     }
 
     @Test
-    fun `area create request validates parent and dimensions`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            AreaCreateRequest(zoneId = "", name = "Area", squareMeters = 10.0)
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            AreaCreateRequest(zoneId = "zone-1", name = "", squareMeters = 10.0)
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            AreaCreateRequest(zoneId = "zone-1", name = "Area", squareMeters = -5.0)
-        }
-    }
-
-    @Test
-    fun `zone create mapper reuses area zone id`() {
+    fun `zone create mapper preserves building link`() {
         val request = ZoneCreateRequest(
             buildingId = "building-1",
             name = "Lobby Zone",
-            floor = 1,
-            area = AreaCreateRequest(zoneId = "zone-123", name = "Lobby"),
-            zoneType = ZoneType.COMMERCIAL
         )
 
         val zone = DtoMappers.toZone(request)
-        assertEquals("zone-123", zone.id)
-        assertEquals("Lobby", zone.area.name)
-        assertEquals(ZoneType.COMMERCIAL, zone.zoneType)
+        assertEquals("building-1", zone.buildingId)
+        assertEquals("Lobby Zone", zone.name)
     }
 
     @Test
     fun `area response validates belonging to zone`() {
-        val area = Area(name = "Main", squareMeters = 20.0)
-        val zone = Zone(name = "Zone", floor = 1, area = area)
+        val area = Area(name = "Main", zoneId = "zone-1")
 
-        val response = DtoMappers.toAreaResponse(area, zone.id)
-        assertEquals(zone.id, response.zoneId)
+        val response = DtoMappers.toAreaResponse(area)
+        assertEquals(area.zoneId, response.zoneId)
 
         val mismatched = response.copy(zoneId = "other-zone")
         assertThrows(IllegalArgumentException::class.java) {
-            DtoValidators.validateAreaBelongsToZone(mismatched, zone.id)
+            DtoValidators.validateAreaBelongsToZone(mismatched, area.zoneId)
         }
     }
 
     @Test
-    fun `zone response preserves building and nested area references`() {
-        val area = Area(name = "Lobby", squareMeters = 15.0)
-        val zone = Zone(name = "Ground Floor", floor = 0, area = area, zoneType = ZoneType.COMMERCIAL)
-        val building = Building(name = "HQ", location = Location(latitude = 10.0, longitude = 10.0))
-        building.addZone(zone)
+    fun `zone response preserves building references`() {
+        val zone = Zone(name = "Ground Floor", buildingId = "building-1")
+        zone.areaIds.add("area-1")
 
-        val response = DtoMappers.toBuildingResponse(building)
-        assertEquals(building.id, response.id)
-        assertEquals(1, response.zones.size)
-
-        val zoneResponse = response.zones.first()
-        assertEquals(building.id, zoneResponse.buildingId)
-        assertEquals(zone.id, zoneResponse.area.zoneId)
-        assertEquals(ZoneType.COMMERCIAL, zoneResponse.zoneType)
+        val response = DtoMappers.toZoneResponse(zone)
+        assertEquals(zone.buildingId, response.buildingId)
+        assertEquals(zone.areaIds, response.areaIds)
     }
 
     @Test
     fun `update mappers override only provided fields`() {
-        val area = Area(name = "Basement", squareMeters = 30.0)
-        val zone = Zone(name = "Storage", floor = -1, area = area)
-        val building = Building(name = "Warehouse", location = Location(latitude = 5.0, longitude = 5.0))
-        building.addZone(zone)
+        val zone = Zone(name = "Storage", buildingId = "building-1")
+        val building = Building(name = "Warehouse", locationId = "loc-1")
+        building.addZone(zone.id)
 
         val updatedBuilding = DtoMappers.updateBuilding(
             building,
-            BuildingUpdateRequest(name = "Warehouse North", description = "Updated")
+            BuildingUpdateRequest(name = "Warehouse North")
         )
         assertEquals("Warehouse North", updatedBuilding.name)
-        assertEquals(building.location, updatedBuilding.location)
-        assertEquals("Updated", updatedBuilding.description)
+        assertEquals(building.locationId, updatedBuilding.locationId)
 
         val updatedZone = DtoMappers.updateZone(
             zone,
             ZoneUpdateRequest(
                 buildingId = building.id,
                 name = "Cold Storage",
-                area = AreaUpdateRequest(zoneId = zone.id, squareMeters = 45.0)
             )
         )
         assertEquals("Cold Storage", updatedZone.name)
-        assertEquals(45.0, requireNotNull(updatedZone.area.squareMeters), 0.0)
-        assertEquals(zone.floor, updatedZone.floor)
-    }
-
-    @Test
-    fun `area update enforces existing zone relationship`() {
-        val area = Area(name = "Hall", squareMeters = 12.0)
-        val zone = Zone(name = "Entrance", floor = 0, area = area)
-
-        assertThrows(IllegalArgumentException::class.java) {
-            DtoMappers.updateZone(
-                zone,
-                ZoneUpdateRequest(
-                    buildingId = "building-1",
-                    area = AreaUpdateRequest(zoneId = "different-zone", name = "Updated Hall")
-                )
-            )
-        }
+        assertEquals(building.id, updatedZone.buildingId)
     }
 
     @Test
     fun `zone validator enforces building relationship`() {
-        val area = Area(name = "Meeting Room", squareMeters = 25.0)
-        val zone = Zone(name = "First Floor", floor = 1, area = area)
-        val response = DtoMappers.toZoneResponse(zone, buildingId = "building-1")
+        val zone = Zone(name = "First Floor", buildingId = "building-1")
+        val response = DtoMappers.toZoneResponse(zone)
 
         assertThrows(IllegalArgumentException::class.java) {
             DtoValidators.validateZoneBelongsToBuilding(response, "other-building")

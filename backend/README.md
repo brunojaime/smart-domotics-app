@@ -32,6 +32,30 @@ A lightweight FastAPI service that issues scoped MQTT credentials and manages de
 - `GET /api/devices`: lists user devices with their topic scopes.
 - `DELETE /api/devices/{id}`: removes a device.
 
+### Smoke test the spatial hierarchy
+Use the nested `/api/v1` routes to create a hierarchy before wiring up the mobile client:
+
+```bash
+# Create a location
+curl -s -X POST http://localhost:8000/api/v1/locations \
+  -H "Content-Type: application/json" \
+  -d '{"name": "HQ"}' | jq .
+
+# Create a building under that location
+curl -s -X POST http://localhost:8000/api/v1/locations/<location_id>/buildings \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Tower"}' | jq .
+
+# Add a zone and device inside the building
+curl -s -X POST http://localhost:8000/api/v1/locations/<location_id>/buildings/<building_id>/zones \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Lobby"}' | jq .
+
+curl -s -X POST http://localhost:8000/api/v1/locations/<location_id>/buildings/<building_id>/zones/<zone_id>/devices \
+  -H "Content-Type: application/json" \
+  -d '{"device_id": "dev-1", "name": "Env Sensor"}' | jq .
+```
+
 ### MQTT connect example
 Fetch credentials from the API, then connect with your MQTT client using the returned values.
 

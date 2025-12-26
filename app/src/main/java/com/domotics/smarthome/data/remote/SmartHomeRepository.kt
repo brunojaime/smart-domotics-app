@@ -16,7 +16,7 @@ class SmartHomeRepository(
 ) {
     fun fetchLocations(): Flow<ApiResult<List<Location>>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.listLocations().items.map { it.toEntity() } })
+        emit(executeRequest { apiService.listLocations().map { it.toEntity() } })
     }
 
     fun createLocation(request: CreateLocationRequest): Flow<ApiResult<Location>> = flow {
@@ -39,77 +39,126 @@ class SmartHomeRepository(
         })
     }
 
-    fun fetchBuildings(): Flow<ApiResult<List<Building>>> = flow {
+    fun fetchBuildings(locationId: String): Flow<ApiResult<List<Building>>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.listBuildings().items.map { it.toEntity() } })
+        emit(executeRequest { apiService.listBuildings(locationId).map { it.toEntity() } })
     }
 
-    fun createBuilding(request: CreateBuildingRequest): Flow<ApiResult<Building>> = flow {
+    fun createBuilding(locationId: String, request: CreateBuildingRequest): Flow<ApiResult<Building>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.createBuilding(request).toEntity() })
+        emit(executeRequest { apiService.createBuilding(locationId, request).toEntity() })
     }
 
-    fun updateBuilding(id: String, request: CreateBuildingRequest): Flow<ApiResult<Building>> = flow {
+    fun updateBuilding(
+        locationId: String,
+        id: String,
+        request: CreateBuildingRequest,
+    ): Flow<ApiResult<Building>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.updateBuilding(id, request).toEntity() })
+        emit(executeRequest { apiService.updateBuilding(locationId, id, request).toEntity() })
     }
 
-    fun deleteBuilding(id: String): Flow<ApiResult<Unit>> = flow {
+    fun deleteBuilding(locationId: String, id: String): Flow<ApiResult<Unit>> = flow {
         emit(ApiResult.Loading)
         emit(executeRequest {
-            val response = apiService.deleteBuilding(id)
+            val response = apiService.deleteBuilding(locationId, id)
             if (!response.isSuccessful) {
                 throw IllegalStateException("Failed to delete building (${response.code()})")
             }
         })
     }
 
-    fun fetchAreas(): Flow<ApiResult<List<Area>>> = flow {
+    fun fetchZones(locationId: String, buildingId: String): Flow<ApiResult<List<Zone>>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.listAreas().items.map { it.toEntity() } })
+        emit(executeRequest { apiService.listZones(locationId, buildingId).map { it.toEntity() } })
     }
 
-    fun createArea(request: CreateAreaRequest): Flow<ApiResult<Area>> = flow {
+    fun createZone(
+        locationId: String,
+        buildingId: String,
+        request: CreateZoneRequest,
+    ): Flow<ApiResult<Zone>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.createArea(request).toEntity() })
+        emit(executeRequest { apiService.createZone(locationId, buildingId, request).toEntity() })
     }
 
-    fun updateArea(id: String, request: CreateAreaRequest): Flow<ApiResult<Area>> = flow {
+    fun updateZone(
+        locationId: String,
+        buildingId: String,
+        id: String,
+        request: CreateZoneRequest,
+    ): Flow<ApiResult<Zone>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.updateArea(id, request).toEntity() })
+        emit(executeRequest { apiService.updateZone(locationId, buildingId, id, request).toEntity() })
     }
 
-    fun deleteArea(id: String): Flow<ApiResult<Unit>> = flow {
+    fun deleteZone(locationId: String, buildingId: String, id: String): Flow<ApiResult<Unit>> = flow {
         emit(ApiResult.Loading)
         emit(executeRequest {
-            val response = apiService.deleteArea(id)
+            val response = apiService.deleteZone(locationId, buildingId, id)
+            if (!response.isSuccessful) {
+                throw IllegalStateException("Failed to delete zone (${response.code()})")
+            }
+        })
+    }
+
+    fun fetchAreas(locationId: String, buildingId: String, zoneId: String): Flow<ApiResult<List<Area>>> = flow {
+        emit(ApiResult.Loading)
+        emit(executeRequest { apiService.listAreas(locationId, buildingId, zoneId).map { it.toEntity() } })
+    }
+
+    fun createArea(
+        locationId: String,
+        buildingId: String,
+        zoneId: String,
+        request: CreateAreaRequest,
+    ): Flow<ApiResult<Area>> = flow {
+        emit(ApiResult.Loading)
+        emit(executeRequest { apiService.createArea(locationId, buildingId, zoneId, request).toEntity() })
+    }
+
+    fun updateArea(
+        locationId: String,
+        buildingId: String,
+        zoneId: String,
+        id: String,
+        request: CreateAreaRequest,
+    ): Flow<ApiResult<Area>> = flow {
+        emit(ApiResult.Loading)
+        emit(executeRequest { apiService.updateArea(locationId, buildingId, zoneId, id, request).toEntity() })
+    }
+
+    fun deleteArea(locationId: String, buildingId: String, zoneId: String, id: String): Flow<ApiResult<Unit>> = flow {
+        emit(ApiResult.Loading)
+        emit(executeRequest {
+            val response = apiService.deleteArea(locationId, buildingId, zoneId, id)
             if (!response.isSuccessful) {
                 throw IllegalStateException("Failed to delete area (${response.code()})")
             }
         })
     }
 
-    fun fetchZones(): Flow<ApiResult<List<Zone>>> = flow {
+    fun fetchDevices(locationId: String, buildingId: String, zoneId: String): Flow<ApiResult<List<DeviceMetadata>>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.listZones().items.map { it.toEntity() } })
+        emit(executeRequest { apiService.listDevices(locationId, buildingId, zoneId).map { it.toEntity() } })
     }
 
-    fun createZone(request: CreateZoneRequest): Flow<ApiResult<Zone>> = flow {
+    fun createDevice(
+        locationId: String,
+        buildingId: String,
+        zoneId: String,
+        request: CreateDeviceRequest,
+    ): Flow<ApiResult<DeviceMetadata>> = flow {
         emit(ApiResult.Loading)
-        emit(executeRequest { apiService.createZone(request).toEntity() })
+        emit(executeRequest { apiService.createDevice(locationId, buildingId, zoneId, request).toEntity() })
     }
 
-    fun updateZone(id: String, request: CreateZoneRequest): Flow<ApiResult<Zone>> = flow {
-        emit(ApiResult.Loading)
-        emit(executeRequest { apiService.updateZone(id, request).toEntity() })
-    }
-
-    fun deleteZone(id: String): Flow<ApiResult<Unit>> = flow {
+    fun deleteDevice(locationId: String, buildingId: String, zoneId: String, deviceId: String): Flow<ApiResult<Unit>> = flow {
         emit(ApiResult.Loading)
         emit(executeRequest {
-            val response = apiService.deleteZone(id)
+            val response = apiService.deleteDevice(locationId, buildingId, zoneId, deviceId)
             if (!response.isSuccessful) {
-                throw IllegalStateException("Failed to delete zone (${response.code()})")
+                throw IllegalStateException("Failed to delete device (${response.code()})")
             }
         })
     }

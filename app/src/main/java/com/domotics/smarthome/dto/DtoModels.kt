@@ -1,20 +1,13 @@
 package com.domotics.smarthome.dto
 
-import com.domotics.smarthome.entities.ZoneType
-
 /**
- * DTO representing geographic location data
+ * DTO representing location data aligned with the backend contract
  */
 data class LocationDTO(
-    val latitude: Double,
-    val longitude: Double,
-    val reference: String? = null
-) {
-    init {
-        require(latitude in -90.0..90.0) { "Latitude must be between -90 and 90" }
-        require(longitude in -180.0..180.0) { "Longitude must be between -180 and 180" }
-    }
-}
+    val id: String,
+    val name: String,
+    val buildingIds: List<String> = emptyList(),
+)
 
 /**
  * Request payload for creating an area
@@ -22,14 +15,10 @@ data class LocationDTO(
 data class AreaCreateRequest(
     val zoneId: String,
     val name: String,
-    val squareMeters: Double? = null
 ) {
     init {
         require(zoneId.isNotBlank()) { "Zone id is required" }
         require(name.isNotBlank()) { "Area name cannot be blank" }
-        squareMeters?.let {
-            require(it > 0) { "Square meters must be positive" }
-        }
     }
 }
 
@@ -39,15 +28,11 @@ data class AreaCreateRequest(
 data class AreaUpdateRequest(
     val zoneId: String,
     val name: String? = null,
-    val squareMeters: Double? = null
 ) {
     init {
         require(zoneId.isNotBlank()) { "Zone id is required" }
         name?.let {
             require(it.isNotBlank()) { "Area name cannot be blank" }
-        }
-        squareMeters?.let {
-            require(it > 0) { "Square meters must be positive" }
         }
     }
 }
@@ -59,7 +44,6 @@ data class AreaResponse(
     val id: String,
     val zoneId: String,
     val name: String,
-    val squareMeters: Double? = null
 )
 
 /**
@@ -68,9 +52,6 @@ data class AreaResponse(
 data class ZoneCreateRequest(
     val buildingId: String,
     val name: String,
-    val floor: Int,
-    val area: AreaCreateRequest,
-    val zoneType: ZoneType? = null
 ) {
     init {
         require(buildingId.isNotBlank()) { "Building id is required" }
@@ -84,9 +65,6 @@ data class ZoneCreateRequest(
 data class ZoneUpdateRequest(
     val buildingId: String,
     val name: String? = null,
-    val floor: Int? = null,
-    val area: AreaUpdateRequest? = null,
-    val zoneType: ZoneType? = null
 ) {
     init {
         require(buildingId.isNotBlank()) { "Building id is required" }
@@ -103,9 +81,7 @@ data class ZoneResponse(
     val id: String,
     val buildingId: String,
     val name: String,
-    val floor: Int,
-    val area: AreaResponse,
-    val zoneType: ZoneType? = null
+    val areaIds: List<String> = emptyList(),
 )
 
 /**
@@ -113,11 +89,11 @@ data class ZoneResponse(
  */
 data class BuildingCreateRequest(
     val name: String,
-    val location: LocationDTO,
-    val description: String? = null
+    val locationId: String,
 ) {
     init {
         require(name.isNotBlank()) { "Building name cannot be blank" }
+        require(locationId.isNotBlank()) { "Building must belong to a location" }
     }
 }
 
@@ -126,12 +102,14 @@ data class BuildingCreateRequest(
  */
 data class BuildingUpdateRequest(
     val name: String? = null,
-    val location: LocationDTO? = null,
-    val description: String? = null
+    val locationId: String? = null,
 ) {
     init {
         name?.let {
             require(it.isNotBlank()) { "Building name cannot be blank" }
+        }
+        locationId?.let {
+            require(it.isNotBlank()) { "Building must belong to a location" }
         }
     }
 }
@@ -142,7 +120,6 @@ data class BuildingUpdateRequest(
 data class BuildingResponse(
     val id: String,
     val name: String,
-    val location: LocationDTO,
-    val description: String? = null,
-    val zones: List<ZoneResponse> = emptyList()
+    val locationId: String,
+    val zoneIds: List<String> = emptyList(),
 )
