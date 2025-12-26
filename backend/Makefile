@@ -4,7 +4,7 @@ install:
 	pip install -r requirements.txt
 
 dev:
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	uvicorn app.main:app --reload --host 0.0.0.0 --port 8005
 
 test:
 	pytest

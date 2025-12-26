@@ -154,7 +154,7 @@ To run the app on a real phone, make sure the backend and broker are reachable o
 3. Configure the app base URL via Gradle properties (local machine only):
    ```
    ~/.gradle/gradle.properties
-   API_BASE_URL=http://192.168.1.28:8000
+   API_BASE_URL=http://192.168.1.28:8005
    ```
 4. Update cleartext allowance for your LAN IP:
    - `app/src/main/res/xml/network_security_config.xml`

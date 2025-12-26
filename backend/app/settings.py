@@ -16,7 +16,7 @@ class AppSettings(BaseSettings):
     oauth_client_ids: Dict[str, str] = Field(default_factory=dict, env="APP_OAUTH_CLIENT_IDS")
     google_client_id: str = Field("", env="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field("", env="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str = Field("http://localhost:8000/api/auth/google/callback", env="GOOGLE_REDIRECT_URI")
+    google_redirect_uri: str = Field("http://localhost:8005/api/auth/google/callback", env="GOOGLE_REDIRECT_URI")
     hivemq_host: str = Field("localhost", env="HIVEMQ_HOST")
     hivemq_port: int = Field(1883, env="HIVEMQ_PORT")
     hivemq_username: str = Field("local_backend", env="HIVEMQ_USERNAME")

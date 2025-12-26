@@ -23,7 +23,7 @@ A lightweight FastAPI service that issues scoped MQTT credentials and manages de
    ```
 4. Call the API with an app token (prefix defaults to `user_`):
    ```bash
-   curl -H "Authorization: Bearer user_demo" http://localhost:8000/healthz
+   curl -H "Authorization: Bearer user_demo" http://localhost:8005/healthz
    ```
 
 ### Useful endpoints
@@ -37,21 +37,21 @@ Use the nested `/api/v1` routes to create a hierarchy before wiring up the mobil
 
 ```bash
 # Create a location
-curl -s -X POST http://localhost:8000/api/v1/locations \
+curl -s -X POST http://localhost:8005/api/v1/locations \
   -H "Content-Type: application/json" \
   -d '{"name": "HQ"}' | jq .
 
 # Create a building under that location
-curl -s -X POST http://localhost:8000/api/v1/locations/<location_id>/buildings \
+curl -s -X POST http://localhost:8005/api/v1/locations/<location_id>/buildings \
   -H "Content-Type: application/json" \
   -d '{"name": "Tower"}' | jq .
 
 # Add a zone and device inside the building
-curl -s -X POST http://localhost:8000/api/v1/locations/<location_id>/buildings/<building_id>/zones \
+curl -s -X POST http://localhost:8005/api/v1/locations/<location_id>/buildings/<building_id>/zones \
   -H "Content-Type: application/json" \
   -d '{"name": "Lobby"}' | jq .
 
-curl -s -X POST http://localhost:8000/api/v1/locations/<location_id>/buildings/<building_id>/zones/<zone_id>/devices \
+curl -s -X POST http://localhost:8005/api/v1/locations/<location_id>/buildings/<building_id>/zones/<zone_id>/devices \
   -H "Content-Type: application/json" \
   -d '{"device_id": "dev-1", "name": "Env Sensor"}' | jq .
 ```
@@ -62,7 +62,7 @@ Fetch credentials from the API, then connect with your MQTT client using the ret
 ```bash
 # Get creds (local backend)
 curl -s -H "Authorization: Bearer user_demo" \
-  http://localhost:8000/api/auth/mqtt | jq .
+  http://localhost:8005/api/auth/mqtt | jq .
 ```
 
 ```text

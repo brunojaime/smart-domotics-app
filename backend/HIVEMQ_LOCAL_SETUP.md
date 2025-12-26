@@ -23,13 +23,13 @@ This note documents the local HiveMQ broker setup, how the backend issues MQTT c
 
 3. Confirm backend health:
    ```bash
-   curl -H "Authorization: Bearer user_demo" http://localhost:8000/healthz
+   curl -H "Authorization: Bearer user_demo" http://localhost:8005/healthz
    ```
 
 4. Fetch MQTT credentials (backend issues scoped access):
    ```bash
    curl -X POST -H "Authorization: Bearer user_demo" \
-     http://localhost:8000/api/auth/mqtt
+     http://localhost:8005/api/auth/mqtt
    ```
 
 ## Verified publish/subscribe

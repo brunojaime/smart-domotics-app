@@ -14,9 +14,9 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        val apiBaseUrl = providers.environmentVariable("API_BASE_URL")
-            .orElse(providers.gradleProperty("API_BASE_URL"))
-            .orElse("http://10.0.2.2:8000")
+        val apiBaseUrl = providers.gradleProperty("API_BASE_URL")
+            .orElse(providers.environmentVariable("API_BASE_URL"))
+            .orElse("http://10.0.2.2:8005")
             .get()
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         val googleClientId = providers.environmentVariable("GOOGLE_CLIENT_ID")
