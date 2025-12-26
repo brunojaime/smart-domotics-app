@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapNotNull
 
@@ -63,7 +62,6 @@ class MqttBrokerRepository(
                     gson.fromJson(envelope.payload, LightStatePayload::class.java)
                 }.getOrNull()
             }
-            .filterIsInstance()
             .flowOn(Dispatchers.IO)
 }
 

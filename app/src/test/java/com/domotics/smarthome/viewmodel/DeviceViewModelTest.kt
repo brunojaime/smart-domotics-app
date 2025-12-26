@@ -14,7 +14,7 @@ class DeviceViewModelTest {
 
     @Before
     fun setup() {
-        viewModel = DeviceViewModel()
+        viewModel = DeviceViewModel(startMqttBridgeOnInit = false)
     }
 
     @Test

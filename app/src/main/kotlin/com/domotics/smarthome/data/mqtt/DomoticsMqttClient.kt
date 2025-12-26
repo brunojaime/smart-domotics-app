@@ -12,9 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttAsyncClient
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.IMqttToken
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
-import org.eclipse.paho.client.mqttv3.MqttClient
+import org.eclipse.paho.client.mqttv3.MqttAsyncClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
 
@@ -41,7 +42,7 @@ class DomoticsMqttClient {
             isCleanSession = true
         }
 
-        client = MqttClient(serverUri, credentials.clientId).apply {
+        client = MqttAsyncClient(serverUri, credentials.clientId).apply {
             setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                     _connectionState.value = MqttConnectionState.Connected
@@ -65,7 +66,7 @@ class DomoticsMqttClient {
                     }
                 }
 
-                override fun deliveryComplete(token: IMqttToken?) {}
+                override fun deliveryComplete(token: IMqttDeliveryToken?) {}
             })
 
             _connectionState.value = MqttConnectionState.Connecting
