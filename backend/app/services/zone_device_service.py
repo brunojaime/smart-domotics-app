@@ -33,5 +33,6 @@ class ZoneDeviceService:
         self._device_repository.delete_by_zone(zone_id)
 
     def _ensure_zone_exists(self, location_id: str, building_id: str, zone_id: str) -> None:
-        if self._zone_repository.get(building_id, zone_id) is None:
+        zone = self._zone_repository.get(zone_id)
+        if zone is None or zone.building_id != building_id:
             raise KeyError("Zone not found")
