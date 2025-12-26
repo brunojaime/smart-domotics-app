@@ -19,10 +19,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.domotics.smarthome.notifications.NotificationViewModel
 import com.domotics.smarthome.data.device.DiscoveredDevice
 import com.domotics.smarthome.data.device.DiscoveryState
 import com.domotics.smarthome.data.device.PairingState
+import com.domotics.smarthome.data.mqtt.MqttConnectionState
+import com.domotics.smarthome.notifications.NotificationViewModel
 import com.domotics.smarthome.ui.theme.SmartDomoticsTheme
 import com.domotics.smarthome.viewmodel.DeviceState
 import com.domotics.smarthome.viewmodel.DeviceViewModel
@@ -34,6 +35,7 @@ fun DeviceListScreen(
     notificationViewModel: NotificationViewModel,
 ) {
     val devices by viewModel.devices.collectAsState()
+    val connectionState by viewModel.connectionState.collectAsState()
     val showAddFlow = remember { mutableStateOf(false) }
     val notification by notificationViewModel.currentNotification
     val snackbarHostState = remember { SnackbarHostState() }
@@ -63,6 +65,11 @@ fun DeviceListScreen(
                 .padding(paddingValues)
                 .padding(16.dp),
         ) {
+            ConnectionStatusBanner(
+                state = connectionState,
+                onRetry = viewModel::reconnectMqtt,
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -292,6 +299,30 @@ private fun PairingStatus(pairingState: PairingState) {
         is PairingState.Success -> Text("Paired with ${pairingState.device.name}")
         is PairingState.Failure -> Text("Failed: ${pairingState.reason}")
     }
+}
+
+@Composable
+private fun ConnectionStatusBanner(
+    state: MqttConnectionState,
+    onRetry: () -> Unit,
+) {
+    val message = when (state) {
+        MqttConnectionState.Connected -> "MQTT connected"
+        MqttConnectionState.Connecting -> "MQTT connecting..."
+        is MqttConnectionState.Error -> "MQTT error: ${state.reason ?: "unknown"}"
+        MqttConnectionState.Disconnected -> "MQTT disconnected"
+    }
+
+    val canRetry = when (state) {
+        MqttConnectionState.Connected, MqttConnectionState.Connecting -> false
+        is MqttConnectionState.Error, MqttConnectionState.Disconnected -> true
+    }
+
+    AssistChip(
+        onClick = { if (canRetry) onRetry() },
+        label = { Text(message) },
+        enabled = true,
+    )
 }
 
 @Preview
