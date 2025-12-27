@@ -13,15 +13,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -140,6 +144,8 @@ fun CrudManagementScreen(
     records: List<CrudItem>,
     onSave: (String?, String, String) -> Unit,
     onDelete: (String) -> Unit,
+    errorMessage: String? = null,
+    contextHeader: (@Composable () -> Unit)? = null,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var name by remember { mutableStateOf("") }
@@ -159,6 +165,8 @@ fun CrudManagementScreen(
     ) {
         Text(section.label, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Add or edit ${section.label.lowercase()}.")
+        contextHeader?.invoke()
+        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -211,6 +219,49 @@ fun CrudManagementScreen(
                         description = record.description
                     },
                     onDelete = { onDelete(record.id) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectionDropdown(
+    label: String,
+    options: List<CrudItem>,
+    selectedId: String?,
+    onSelected: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = options.firstOrNull { it.id == selectedId }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = selected?.name ?: "",
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true },
+            readOnly = true,
+            trailingIcon = {
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+            },
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.name) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option.id)
+                    },
                 )
             }
         }

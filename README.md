@@ -124,6 +124,13 @@ The app requests the following permissions for IoT functionality:
 - **Room**: Local database
 - **Coroutines**: Asynchronous programming
 
+### Device onboarding (discovery-first UX)
+
+- **DiscoverySession** aggregates multiple `DiscoveryStrategy` implementations (BLE, mDNS, Soft AP mocks) and exposes a unified `DiscoverySessionState` stream to the UI.
+- **DiscoveredDevice** is a pure domain object with a temporary identifier, display name, optional signal strength, and supported pairing capabilities; transport metadata stays internal to the orchestrator.
+- **ConnectionOrchestrator** owns discovery and provisioning: it runs discovery first, then creates a `PairingSession` for the selected device and auto-selects the best `ProvisioningStrategy` (Soft AP, Bluetooth fallback, onboarding code) based on metadata.
+- **PairingSession** manages onboarding lifecycle and surfaces success or failure without requiring the user to choose transport details.
+
 ## Building
 
 ```bash

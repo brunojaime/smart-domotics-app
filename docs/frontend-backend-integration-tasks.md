@@ -34,3 +34,80 @@ The Android client currently calls flat `/api/*` endpoints with payloads that do
 ## Testing
 - [ ] Add integration tests (or mock-backed unit tests) in the Android app to verify that repository methods hit the expected URLs and serialize request bodies per backend expectations.
 - [ ] Smoke-test the FastAPI routes with `curl`/`HTTPie` examples in the README once the client payloads are aligned.
+
+# Device provisioning architecture (strategy + adapter)
+
+This plan documents a transport-agnostic provisioning flow that hides hardware and transport details from the user experience.
+
+## Non-negotiables
+- Do not put transport logic in UI.
+- Do not branch UI per transport.
+- Do not let firmware or transport details leak upward.
+- Do not collapse Strategy and Adapter into one class.
+
+## Core patterns
+- **Strategy** is the core pattern: owns discovery, retries, fallback, and the provisioning state machine.
+- **Adapter** is the supporting pattern: wraps transports and exposes a normalized API.
+- Strategy and Adapter solve different problems and must coexist.
+
+## Responsibilities
+### Mobile app
+- Detect device candidates via discovery.
+- Auto-select provisioning transport (prefer BLE, fallback to Soft AP).
+- Drive a single UX flow for all devices.
+- Handle retries and fallback without exposing transport details.
+
+### Firmware
+- Implement Soft AP provisioning endpoint.
+- Implement BLE provisioning service (when available).
+- Connect to Wi-Fi and broker using supplied credentials.
+
+### Backend
+- Device registry and ownership binding.
+- Auth tokens and MQTT credential minting (scoped, short-lived).
+- OTA metadata.
+- Never handles Wi-Fi credentials.
+
+## Mobile architecture
+### Strategy layer
+- Owns discovery orchestration and provisioning flow.
+- Implements retry/backoff and fallback semantics.
+- Emits a normalized provisioning state machine.
+
+### Adapter layer
+- Wraps BLE, HTTP/Soft AP, or other transports.
+- Exposes a normalized API to the Strategy.
+
+### Strategy state model
+- `idle → discovering → connecting → sending_credentials → awaiting_online → done | failed`
+- Failure states should include reason codes for retries.
+
+### Adapter API (example)
+- `discover(): Flow<DiscoveryResult>`
+- `connect(target): Result<Unit>`
+- `sendWifiCredentials(ssid, password, deviceId): Result<Unit>`
+- `sendMqttCredentials(creds): Result<Unit>`
+- `observeStatus(): Flow<ProvisioningStatus>`
+
+## Provisioning flow (transport-agnostic)
+1. Start discovery.
+2. If BLE candidates found, use BLE adapter; else use Soft AP adapter.
+3. Send Wi-Fi credentials directly to device.
+4. Request MQTT credentials from backend; send to device.
+5. Device connects to broker.
+6. Confirm device online and allow zone/leaf assignment.
+
+## Backend contracts
+- `POST /api/devices/pair` → bind ownership + return scoped MQTT credentials.
+- `POST /api/devices/{id}/assign` → link device to zone/leaf.
+- `GET /api/devices` → list owned devices.
+
+## UX requirements
+Show:
+- Connecting to device
+- Sending Wi-Fi info
+- Device online
+
+Do not show:
+- Transport type
+- Hardware type
