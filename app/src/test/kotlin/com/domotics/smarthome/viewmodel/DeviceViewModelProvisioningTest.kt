@@ -8,17 +8,24 @@ import com.domotics.smarthome.provisioning.ProvisioningOrchestrator
 import com.domotics.smarthome.provisioning.ProvisioningProgress
 import com.domotics.smarthome.provisioning.ProvisioningResult
 import com.domotics.smarthome.provisioning.WifiCredentials
+import com.domotics.smarthome.util.MainDispatcherRule
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DeviceViewModelProvisioningTest {
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
     @Test
-    fun `provisioning uses backend orchestrator when provided`() = runTest {
+    fun `provisioning uses backend orchestrator when provided`() = runTest(mainDispatcherRule.testDispatcher) {
         val device = DiscoveredDevice(
             id = "device-1",
             name = "Demo",

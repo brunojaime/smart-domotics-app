@@ -9,10 +9,12 @@ router = APIRouter(prefix="/provisioning", tags=["provisioning"])
 security = HTTPBearer(auto_error=False)
 
 
-def _get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> User:
+async def _get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> User:
     from ..main import get_current_user
 
-    return get_current_user(credentials)
+    return await get_current_user(credentials)
 
 
 def _get_service() -> ProvisioningService:
