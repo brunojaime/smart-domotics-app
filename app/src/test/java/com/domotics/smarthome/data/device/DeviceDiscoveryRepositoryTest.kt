@@ -5,46 +5,65 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import com.domotics.smarthome.provisioning.DiscoveryMetadata
+import com.domotics.smarthome.data.device.PairingCapability
 
-private class FakeScanner(
-    private val devices: List<DiscoveredDevice>,
+private class FakeDiscoveryStrategy(
+    override val id: String,
+    private val findings: List<DiscoveryFinding>,
     private val shouldThrow: Boolean = false,
-) : DeviceScanner {
-    override suspend fun discover(): List<DiscoveredDevice> {
+) : DiscoveryStrategy {
+    override suspend fun discover(): List<DiscoveryFinding> {
         if (shouldThrow) throw IllegalStateException("scan failed")
-        return devices
+        return findings
     }
 }
 
 class DeviceDiscoveryRepositoryTest {
 
     @Test
-    fun `emits progress and results`() = runBlocking {
-        val repository = DeviceDiscoveryRepositoryImpl(
-            listOf(
-                FakeScanner(listOf(DiscoveredDevice("1", "Wi‑Fi Bulb"))),
-                FakeScanner(listOf(DiscoveredDevice("2", "mDNS Plug"))),
-            ),
+    fun `emits progress, deduplicates devices, and retains metadata`() = runBlocking {
+        val wifiFinding = DiscoveryFinding(
+            device = DiscoveredDevice("1", "Wi‑Fi Bulb", pairingCapabilities = setOf(PairingCapability.SOFT_AP)),
+            metadata = DiscoveryMetadata(supportsSoftAp = true, simulated = true),
+        )
+        val mdnsFinding = DiscoveryFinding(
+            device = DiscoveredDevice("1", "Wi‑Fi Bulb", pairingCapabilities = setOf(PairingCapability.SOFT_AP)),
+            metadata = DiscoveryMetadata(supportsSoftAp = true, simulated = true),
+        )
+        val bluetoothFinding = DiscoveryFinding(
+            device = DiscoveredDevice("2", "BLE Plug", pairingCapabilities = setOf(PairingCapability.BLUETOOTH)),
+            metadata = DiscoveryMetadata(supportsBluetoothFallback = true, simulated = true),
         )
 
-        val emissions = repository.discoverDevices().toList()
-        assertTrue(emissions[0] is DiscoveryState.Scanning)
-        assertTrue(emissions[1] is DiscoveryState.Scanning)
-        assertTrue(emissions[2] is DiscoveryState.Scanning)
+        val session = DiscoverySession(
+            listOf(
+                FakeDiscoveryStrategy("wifi", listOf(wifiFinding)),
+                FakeDiscoveryStrategy("mdns", listOf(mdnsFinding)),
+                FakeDiscoveryStrategy("bluetooth", listOf(bluetoothFinding)),
+            )
+        )
+
+        val emissions = session.discoverDevices().toList()
+        assertTrue(emissions[0] is DiscoverySessionState.Discovering)
+        assertTrue(emissions[1] is DiscoverySessionState.Discovering)
+        assertTrue(emissions[2] is DiscoverySessionState.Discovering)
         val results = emissions[3]
-        assertTrue(results is DiscoveryState.Results)
-        assertEquals(2, (results as DiscoveryState.Results).devices.size)
+        assertTrue(results is DiscoverySessionState.Results)
+        assertEquals(2, (results as DiscoverySessionState.Results).devices.size)
+        assertTrue(session.metadataFor("1")?.supportsSoftAp == true)
+        assertTrue(session.metadataFor("2")?.supportsBluetoothFallback == true)
     }
 
     @Test
     fun `emits error when scanner fails`() = runBlocking {
-        val repository = DeviceDiscoveryRepositoryImpl(
-            listOf(FakeScanner(emptyList(), shouldThrow = true)),
+        val session = DiscoverySession(
+            listOf(FakeDiscoveryStrategy("wifi", emptyList(), shouldThrow = true)),
         )
 
-        val emissions = repository.discoverDevices().toList()
-        assertTrue(emissions[0] is DiscoveryState.Scanning)
+        val emissions = session.discoverDevices().toList()
+        assertTrue(emissions[0] is DiscoverySessionState.Discovering)
         val error = emissions[1]
-        assertTrue(error is DiscoveryState.Error)
+        assertTrue(error is DiscoverySessionState.Error)
     }
 }

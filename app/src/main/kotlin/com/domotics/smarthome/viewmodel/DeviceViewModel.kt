@@ -8,20 +8,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.domotics.smarthome.data.auth.SecureTokenStorage
 import com.domotics.smarthome.data.auth.TokenProvider
-import com.domotics.smarthome.data.device.DeviceDiscoveryRepository
-import com.domotics.smarthome.data.device.DeviceDiscoveryRepositoryImpl
+import com.domotics.smarthome.connection.ConnectionOrchestrator
+import com.domotics.smarthome.connection.PairingSession
 import com.domotics.smarthome.data.device.DiscoveredDevice
-import com.domotics.smarthome.data.device.DiscoveryState
+import com.domotics.smarthome.data.device.DiscoverySessionState
 import com.domotics.smarthome.data.device.MockBluetoothScanner
 import com.domotics.smarthome.data.device.MockMdnsScanner
 import com.domotics.smarthome.data.device.MockSsdpScanner
 import com.domotics.smarthome.data.device.MockWifiScanner
 import com.domotics.smarthome.data.device.PairingCredentials
-import com.domotics.smarthome.data.device.PairingService
-import com.domotics.smarthome.data.device.PairingServiceImpl
 import com.domotics.smarthome.data.device.PairingState
 import com.domotics.smarthome.data.device.RadioState
-import com.domotics.smarthome.data.device.LocalPairingClient
 import com.domotics.smarthome.data.mqtt.LightStatePayload
 import com.domotics.smarthome.data.mqtt.MqttBrokerRepository
 import com.domotics.smarthome.data.mqtt.MqttConnectionState
@@ -29,13 +26,7 @@ import com.domotics.smarthome.entities.Device
 import com.domotics.smarthome.entities.DeviceStatus
 import com.domotics.smarthome.entities.Lighting
 import com.domotics.smarthome.provisioning.BluetoothProvisioningStrategy
-import com.domotics.smarthome.provisioning.DiscoveryMetadata
 import com.domotics.smarthome.provisioning.OnboardingCodeProvisioningStrategy
-import com.domotics.smarthome.provisioning.ProvisioningProgress
-import com.domotics.smarthome.provisioning.ProvisioningResult
-import com.domotics.smarthome.provisioning.ProvisioningStrategy
-import com.domotics.smarthome.provisioning.ProvisioningStrategySummary
-import com.domotics.smarthome.provisioning.ProvisioningViewState
 import com.domotics.smarthome.provisioning.SoftApProvisioningStrategy
 import com.domotics.smarthome.provisioning.WifiCredentials
 import kotlinx.coroutines.Job
@@ -53,15 +44,19 @@ data class DeviceState(
 )
 
 class DeviceViewModel(
-    /**
-     * By default the view model wires in demo scanners that emit simulated devices so the UI can
-     * be exercised without hardware. To talk to real devices, pass a repository backed by
-     * production `DeviceScanner` implementations instead.
-     */
-    private val discoveryRepository: DeviceDiscoveryRepository = DeviceDiscoveryRepositoryImpl(
-        listOf(MockWifiScanner(), MockMdnsScanner(), MockSsdpScanner(), MockBluetoothScanner()),
+    private val orchestrator: ConnectionOrchestrator = ConnectionOrchestrator(
+        discoveryStrategies = listOf(
+            MockWifiScanner(),
+            MockMdnsScanner(),
+            MockSsdpScanner(),
+            MockBluetoothScanner(),
+        ),
+        provisioningStrategies = listOf(
+            SoftApProvisioningStrategy(),
+            BluetoothProvisioningStrategy(),
+            OnboardingCodeProvisioningStrategy(),
+        ),
     ),
-    pairingService: PairingService? = null,
     private val tokenProvider: TokenProvider? = null,
     private val mqttRepository: MqttBrokerRepository = MqttBrokerRepository(tokenProvider = tokenProvider),
     private val startMqttBridgeOnInit: Boolean = true,
@@ -69,17 +64,14 @@ class DeviceViewModel(
     private val _radioState = MutableStateFlow(RadioState())
     val radioState: StateFlow<RadioState> = _radioState.asStateFlow()
 
-    private val discoveryMetadata = mutableMapOf<String, DiscoveryMetadata>()
-    private val pairingService: PairingService = pairingService
-        ?: PairingServiceImpl(LocalPairingClient({ discoveryMetadata[it] }, { _radioState.value }))
     private val _devices = MutableStateFlow<List<DeviceState>>(emptyList())
     val devices: StateFlow<List<DeviceState>> = _devices.asStateFlow()
 
     private val _connectionState = MutableStateFlow<MqttConnectionState>(MqttConnectionState.Disconnected)
     val connectionState: StateFlow<MqttConnectionState> = _connectionState.asStateFlow()
 
-    private val _discoveryState = MutableStateFlow<DiscoveryState>(DiscoveryState.Idle)
-    val discoveryState: StateFlow<DiscoveryState> = _discoveryState.asStateFlow()
+    private val _discoveryState = MutableStateFlow<DiscoverySessionState>(DiscoverySessionState.Idle)
+    val discoveryState: StateFlow<DiscoverySessionState> = _discoveryState.asStateFlow()
 
     private val _usesSimulatedDiscovery = MutableStateFlow(false)
     val usesSimulatedDiscovery: StateFlow<Boolean> = _usesSimulatedDiscovery.asStateFlow()
@@ -94,18 +86,7 @@ class DeviceViewModel(
     val credentials: StateFlow<PairingCredentials> = _credentials.asStateFlow()
 
     private var discoveryJob: Job? = null
-
-    private val provisioningStrategies: List<ProvisioningStrategy> = listOf(
-        SoftApProvisioningStrategy(),
-        BluetoothProvisioningStrategy(),
-        OnboardingCodeProvisioningStrategy()
-    )
-
-    private val _provisioningState = mutableStateOf(ProvisioningViewState())
-    val provisioningState = _provisioningState
-
-    private var provisioningJob: Job? = null
-    private var lastDiscoveryMetadata: DiscoveryMetadata? = null
+    private var activePairingSession: PairingSession? = null
 
     private var mqttStarted = false
 
@@ -113,7 +94,6 @@ class DeviceViewModel(
         if (startMqttBridgeOnInit) {
             startMqttBridge()
         }
-        updateDiscovery(DiscoveryMetadata())
     }
 
     fun setWifiEnabled(enabled: Boolean) {
@@ -178,60 +158,6 @@ class DeviceViewModel(
         }
     }
 
-    fun updateDiscovery(metadata: DiscoveryMetadata) {
-        lastDiscoveryMetadata = metadata
-        val available = provisioningStrategies.filter { it.supports(metadata) }
-        val summaries = available.map { it.toSummary() }
-        _provisioningState.value = _provisioningState.value.copy(
-            availableStrategies = summaries,
-            selectedStrategy = summaries.firstOrNull(),
-            progress = null,
-            lastResult = null
-        )
-    }
-
-    fun selectProvisioningStrategy(strategyId: String) {
-        val selected = _provisioningState.value.availableStrategies.firstOrNull { it.id == strategyId }
-        if (selected != null) {
-            _provisioningState.value = _provisioningState.value.copy(
-                selectedStrategy = selected,
-                lastResult = null
-            )
-        }
-    }
-
-    fun cancelProvisioning() {
-        provisioningJob?.cancel()
-        provisioningStrategies.forEach { it.cancel() }
-        _provisioningState.value = _provisioningState.value.copy(
-            progress = null,
-            lastResult = ProvisioningResult.Cancelled()
-        )
-    }
-
-    fun provisionSelectedStrategy(credentials: WifiCredentials) {
-        val metadata = lastDiscoveryMetadata ?: return
-        val selectedStrategyId = _provisioningState.value.selectedStrategy?.id ?: return
-        val strategy = provisioningStrategies.firstOrNull { it.id == selectedStrategyId } ?: return
-
-        provisioningJob?.cancel()
-        _provisioningState.value = _provisioningState.value.copy(
-            progress = ProvisioningProgress.ConnectingToDeviceAp,
-            lastResult = null
-        )
-
-        provisioningJob = viewModelScope.launch {
-            val result = strategy.provision(metadata, credentials) { progress ->
-                _provisioningState.value = _provisioningState.value.copy(progress = progress)
-            }
-
-            _provisioningState.value = _provisioningState.value.copy(
-                progress = null,
-                lastResult = result
-            )
-        }
-    }
-
     fun removeDevice(deviceState: DeviceState) {
         _devices.value = _devices.value.filter { it.device.id != deviceState.device.id }
     }
@@ -269,24 +195,17 @@ class DeviceViewModel(
     fun startDiscovery() {
         val radios = _radioState.value
         if (!radios.wifiEnabled && !radios.bluetoothEnabled) {
-            _discoveryState.value = DiscoveryState.Error("Enable Wi‑Fi or Bluetooth to scan for devices")
+            _discoveryState.value = DiscoverySessionState.Error("Enable Wi‑Fi or Bluetooth to scan for devices")
             return
         }
 
         discoveryJob?.cancel()
         discoveryJob = viewModelScope.launch {
-            discoveryRepository.discoverDevices().collectLatest { state ->
+            orchestrator.discoveryStates().collectLatest { state ->
                 _discoveryState.value = state
-                if (state is DiscoveryState.Results) {
-                    discoveryMetadata.clear()
-                    _usesSimulatedDiscovery.value = state.devices.any { it.metadata.simulated }
-                    state.devices.forEach { device ->
-                        discoveryMetadata[device.id] = device.metadata
-                    }
+                if (state is DiscoverySessionState.Results) {
+                    _usesSimulatedDiscovery.value = false
                     _selectedDevice.value = state.devices.firstOrNull()
-                    state.devices.firstOrNull()?.let { device ->
-                        updateDiscovery(discoveryMetadata[device.id] ?: DiscoveryMetadata())
-                    }
                 }
             }
         }
@@ -294,16 +213,15 @@ class DeviceViewModel(
 
     fun resetDiscovery() {
         discoveryJob?.cancel()
-        _discoveryState.value = DiscoveryState.Idle
+        _discoveryState.value = DiscoverySessionState.Idle
         _usesSimulatedDiscovery.value = false
         _selectedDevice.value = null
         _pairingState.value = PairingState.Idle
-        discoveryMetadata.clear()
+        activePairingSession = null
     }
 
     fun selectDevice(device: DiscoveredDevice) {
         _selectedDevice.value = device
-        updateDiscovery(discoveryMetadata[device.id] ?: DiscoveryMetadata())
     }
 
     fun updateCredentials(ssid: String, password: String) {
@@ -313,9 +231,20 @@ class DeviceViewModel(
 
     fun pairSelectedDevice(onPaired: (() -> Unit)? = null) {
         val device = _selectedDevice.value ?: return
+        val pairingSession = orchestrator.pairingSessionFor(device)
+        if (pairingSession == null) {
+            _pairingState.value = PairingState.Failure("Device metadata missing; try scanning again")
+            return
+        }
+        activePairingSession = pairingSession
         _pairingState.value = PairingState.Submitting
         viewModelScope.launch {
-            val pairingResult = pairingService.pairDevice(device, _credentials.value)
+            val wifiCredentials = _credentials.value.toWifiCredentials()
+                ?: run {
+                    _pairingState.value = PairingState.Failure("Wi‑Fi credentials are required")
+                    return@launch
+                }
+            val pairingResult = pairingSession.provision(wifiCredentials)
             _pairingState.value = pairingResult
             if (pairingResult is PairingState.Success) {
                 val pairedState = DeviceState(
@@ -370,9 +299,8 @@ class DeviceViewModelFactory(private val context: Context, private val startOnIn
     }
 }
 
-private fun ProvisioningStrategy.toSummary(): ProvisioningStrategySummary =
-    ProvisioningStrategySummary(
-        id = id,
-        name = name,
-        requiredUserAction = requiredUserAction
-    )
+private fun PairingCredentials.toWifiCredentials(): WifiCredentials? {
+    val safeSsid = ssid?.takeIf { it.isNotBlank() } ?: return null
+    val safePassword = password?.takeIf { it.isNotBlank() } ?: return null
+    return WifiCredentials(safeSsid, safePassword)
+}

@@ -20,7 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.domotics.smarthome.data.device.DiscoveredDevice
-import com.domotics.smarthome.data.device.DiscoveryState
+import com.domotics.smarthome.data.device.DiscoverySessionState
 import com.domotics.smarthome.data.device.PairingState
 import com.domotics.smarthome.data.mqtt.MqttConnectionState
 import com.domotics.smarthome.notifications.NotificationViewModel
@@ -237,25 +237,25 @@ fun AddDeviceFlowDialog(
 
 @Composable
 private fun DiscoveryContent(
-    discoveryState: DiscoveryState,
+    discoveryState: DiscoverySessionState,
     selected: DiscoveredDevice?,
     onStart: () -> Unit,
     onRetry: () -> Unit,
     onSelect: (DiscoveredDevice) -> Unit,
 ) {
     when (discoveryState) {
-        DiscoveryState.Idle -> {
+        DiscoverySessionState.Idle -> {
             OutlinedButton(onClick = onStart) { Text("Scan for devices") }
         }
 
-        is DiscoveryState.Scanning -> {
+        is DiscoverySessionState.Discovering -> {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 LinearProgressIndicator(progress = discoveryState.progress / 100f, modifier = Modifier.fillMaxWidth())
                 Text("Scanning... ${discoveryState.progress}%")
             }
         }
 
-        is DiscoveryState.Results -> {
+        is DiscoverySessionState.Results -> {
             Text("Select a device", style = MaterialTheme.typography.titleSmall)
             discoveryState.devices.forEach { device ->
                 val isSelected = selected?.id == device.id
@@ -267,22 +267,22 @@ private fun DiscoveryContent(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(device.name, style = MaterialTheme.typography.titleMedium)
-                        if (device.capabilities.isNotEmpty()) {
-                            Text(device.capabilities.joinToString(), style = MaterialTheme.typography.bodySmall)
+                        if (device.pairingCapabilities.isNotEmpty()) {
+                            Text(device.pairingCapabilities.joinToString(), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             }
         }
 
-        DiscoveryState.NoResults -> {
+        DiscoverySessionState.NoResults -> {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("No devices found", style = MaterialTheme.typography.bodyLarge)
                 TextButton(onClick = onRetry) { Text("Retry") }
             }
         }
 
-        is DiscoveryState.Error -> {
+        is DiscoverySessionState.Error -> {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Error: ${discoveryState.message}")
                 TextButton(onClick = onRetry) { Text("Retry") }
