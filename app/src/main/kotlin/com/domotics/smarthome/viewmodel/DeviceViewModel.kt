@@ -38,6 +38,7 @@ import com.domotics.smarthome.provisioning.ProvisioningStrategy
 import com.domotics.smarthome.provisioning.ProvisioningViewState
 import com.domotics.smarthome.provisioning.SoftApProvisioningStrategy
 import com.domotics.smarthome.provisioning.WifiCredentials
+import com.domotics.smarthome.provisioning.toSummary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

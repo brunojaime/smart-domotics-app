@@ -1,6 +1,7 @@
 package com.domotics.smarthome.provisioning
 
 import com.domotics.smarthome.data.device.DiscoveredDevice
+import com.domotics.smarthome.data.device.PairingCapability
 import com.domotics.smarthome.data.remote.ProvisioningApiService
 import com.domotics.smarthome.provisioning.ProvisioningProgress as UiProgress
 import com.domotics.smarthome.provisioning.ProvisioningResult as UiResult
@@ -50,17 +51,17 @@ class BackendProvisioningRepositoryTest {
             enableLogging = false,
         )
         val repository = BackendProvisioningRepository(api)
+        val metadata = DiscoveryMetadata(supportsSoftAp = true)
         val device = DiscoveredDevice(
             id = "device-123",
             name = "Demo",
-            capabilities = listOf("wifi"),
-            metadata = DiscoveryMetadata(supportsSoftAp = true),
+            pairingCapabilities = setOf(PairingCapability.SOFT_AP),
         )
 
         val progressUpdates = mutableListOf<UiProgress>()
         val result = repository.provision(
             device = device,
-            metadata = device.metadata,
+            metadata = metadata,
             credentials = WifiCredentials(ssid = "Home", password = "supersecret"),
             strategyId = "wifi",
         ) { progressUpdates.add(it) }
@@ -69,7 +70,7 @@ class BackendProvisioningRepositoryTest {
         assertEquals("/api/v1/provisioning/devices/device-123", recordedRequest.path)
         val body = recordedRequest.body.readUtf8()
         assertTrue(body.contains("\"device_type\":\"wifi\""))
-        assertTrue(body.contains("\"capabilities\":[\"wifi\"]"))
+        assertTrue(body.contains("\"capabilities\":[\"soft_ap\"]"))
         assertTrue(progressUpdates.isNotEmpty())
         assertTrue(result is UiResult.Success)
     }
@@ -95,16 +96,16 @@ class BackendProvisioningRepositoryTest {
             enableLogging = false,
         )
         val repository = BackendProvisioningRepository(api)
+        val metadata = DiscoveryMetadata(supportsSoftAp = false)
         val device = DiscoveredDevice(
             id = "device-456",
             name = "Demo",
-            capabilities = emptyList(),
-            metadata = DiscoveryMetadata(supportsSoftAp = false),
+            pairingCapabilities = emptySet(),
         )
 
         val result = repository.provision(
             device = device,
-            metadata = device.metadata,
+            metadata = metadata,
             credentials = WifiCredentials(ssid = "Lab", password = "badpass"),
             strategyId = "wifi",
         ) { }

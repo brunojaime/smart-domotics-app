@@ -27,3 +27,10 @@ interface ProvisioningStrategy {
      */
     fun cancel()
 }
+
+fun ProvisioningStrategy.toSummary(): ProvisioningStrategySummary =
+    ProvisioningStrategySummary(
+        id = id,
+        name = name,
+        requiredUserAction = requiredUserAction
+    )

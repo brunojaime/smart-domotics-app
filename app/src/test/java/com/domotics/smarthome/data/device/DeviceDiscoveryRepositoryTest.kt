@@ -45,10 +45,9 @@ class DeviceDiscoveryRepositoryTest {
         )
 
         val emissions = session.discoverDevices().toList()
-        assertTrue(emissions[0] is DiscoverySessionState.Discovering)
-        assertTrue(emissions[1] is DiscoverySessionState.Discovering)
-        assertTrue(emissions[2] is DiscoverySessionState.Discovering)
-        val results = emissions[3]
+        val progressUpdates = emissions.filterIsInstance<DiscoverySessionState.Discovering>()
+        assertEquals(4, progressUpdates.size)
+        val results = emissions.last()
         assertTrue(results is DiscoverySessionState.Results)
         assertEquals(2, (results as DiscoverySessionState.Results).devices.size)
         assertTrue(session.metadataFor("1")?.supportsSoftAp == true)
@@ -63,7 +62,7 @@ class DeviceDiscoveryRepositoryTest {
 
         val emissions = session.discoverDevices().toList()
         assertTrue(emissions[0] is DiscoverySessionState.Discovering)
-        val error = emissions[1]
+        val error = emissions.last()
         assertTrue(error is DiscoverySessionState.Error)
     }
 }

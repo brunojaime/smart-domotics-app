@@ -2,9 +2,9 @@ package com.domotics.smarthome.data.device
 
 import com.domotics.smarthome.provisioning.DiscoveryMetadata
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.supervisorScope
 
 /** Strategy contract for running a discovery transport. */
 interface DiscoveryStrategy {
@@ -30,13 +30,14 @@ class DiscoverySession(private val strategies: List<DiscoveryStrategy>) {
 
         send(DiscoverySessionState.Discovering(progress = 0))
         val aggregated = mutableListOf<DiscoveredDevice>()
+        var hadError = false
 
-        coroutineScope {
+        supervisorScope {
             val jobs = strategies.map { strategy ->
                 async { strategy.id to strategy.discover() }
             }
 
-            jobs.forEachIndexed { index, job ->
+            for ((index, job) in jobs.withIndex()) {
                 try {
                     val (_, findings) = job.await()
                     findings.forEach { finding ->
@@ -49,9 +50,18 @@ class DiscoverySession(private val strategies: List<DiscoveryStrategy>) {
                     send(DiscoverySessionState.Discovering(progress = progress))
                 } catch (ex: Exception) {
                     send(DiscoverySessionState.Error(ex.message ?: "Discovery failed"))
-                    return@coroutineScope
+                    hadError = true
+                    break
                 }
             }
+
+            if (hadError) {
+                jobs.forEach { it.cancel() }
+            }
+        }
+
+        if (hadError) {
+            return@channelFlow
         }
 
         if (aggregated.isEmpty()) {

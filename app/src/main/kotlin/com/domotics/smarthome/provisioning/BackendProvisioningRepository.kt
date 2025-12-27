@@ -1,6 +1,7 @@
 package com.domotics.smarthome.provisioning
 
 import com.domotics.smarthome.data.device.DiscoveredDevice
+import com.domotics.smarthome.data.device.PairingCapability
 import com.domotics.smarthome.data.remote.ProvisioningApiService
 import com.domotics.smarthome.data.remote.ProvisioningRequestDto
 import com.domotics.smarthome.data.remote.ProvisioningStageDto
@@ -32,7 +33,7 @@ class BackendProvisioningRepository(
             deviceId = device.id,
             strategy = backendStrategyId,
             deviceType = chooseDeviceType(device, metadata),
-            capabilities = device.capabilities,
+            capabilities = pairingCapabilitiesFor(device),
             payload = payload,
         )
 
@@ -73,14 +74,28 @@ class BackendProvisioningRepository(
 
     private fun chooseDeviceType(device: DiscoveredDevice, metadata: DiscoveryMetadata): String {
         if (metadata.supportsSoftAp) return "wifi"
-        val firstCapability = device.capabilities.firstOrNull()
-        return firstCapability ?: "generic"
+        val firstCapability = device.pairingCapabilities.firstOrNull()
+        return when (firstCapability) {
+            PairingCapability.BLUETOOTH -> "bluetooth"
+            PairingCapability.ONBOARDING_CODE -> "onboarding_code"
+            PairingCapability.SOFT_AP -> "wifi"
+            null -> "generic"
+        }
     }
 
     private fun normalizeStrategy(strategyId: String): String = when (strategyId) {
         "soft_ap" -> "wifi"
         else -> strategyId
     }
+
+    private fun pairingCapabilitiesFor(device: DiscoveredDevice): List<String> =
+        device.pairingCapabilities.map { capability ->
+            when (capability) {
+                PairingCapability.SOFT_AP -> "soft_ap"
+                PairingCapability.BLUETOOTH -> "bluetooth"
+                PairingCapability.ONBOARDING_CODE -> "onboarding_code"
+            }
+        }
 
     private fun emitProgress(
         steps: List<com.domotics.smarthome.data.remote.ProvisioningStepDto>,
