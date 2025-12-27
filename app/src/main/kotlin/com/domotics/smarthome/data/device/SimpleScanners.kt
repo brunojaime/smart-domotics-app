@@ -3,14 +3,18 @@ package com.domotics.smarthome.data.device
 import com.domotics.smarthome.provisioning.DiscoveryMetadata
 import kotlinx.coroutines.delay
 
-class MockWifiScanner : DeviceScanner {
-    override suspend fun discover(): List<DiscoveredDevice> {
+class MockWifiScanner : DiscoveryStrategy {
+    override val id: String = "wifi"
+
+    override suspend fun discover(): List<DiscoveryFinding> {
         delay(200)
         return listOf(
-            DiscoveredDevice(
-                id = "wifi-1",
-                name = "Wi‑Fi Bulb",
-                capabilities = listOf("soft-ap", "wifi"),
+            DiscoveryFinding(
+                device = DiscoveredDevice(
+                    id = "wifi-1",
+                    name = "Wi‑Fi Bulb",
+                    pairingCapabilities = setOf(PairingCapability.SOFT_AP, PairingCapability.BLUETOOTH),
+                ),
                 metadata = DiscoveryMetadata(
                     deviceSsid = "SmartBulb-Setup",
                     supportsSoftAp = true,
@@ -24,14 +28,18 @@ class MockWifiScanner : DeviceScanner {
     }
 }
 
-class MockMdnsScanner : DeviceScanner {
-    override suspend fun discover(): List<DiscoveredDevice> {
+class MockMdnsScanner : DiscoveryStrategy {
+    override val id: String = "mdns"
+
+    override suspend fun discover(): List<DiscoveryFinding> {
         delay(150)
         return listOf(
-            DiscoveredDevice(
-                id = "mdns-1",
-                name = "mDNS Switch",
-                capabilities = listOf("mdns", "wifi"),
+            DiscoveryFinding(
+                device = DiscoveredDevice(
+                    id = "mdns-1",
+                    name = "mDNS Switch",
+                    pairingCapabilities = setOf(PairingCapability.SOFT_AP),
+                ),
                 metadata = DiscoveryMetadata(
                     supportsSoftAp = true,
                     supportsBluetoothFallback = false,
@@ -45,21 +53,27 @@ class MockMdnsScanner : DeviceScanner {
     }
 }
 
-class MockSsdpScanner : DeviceScanner {
-    override suspend fun discover(): List<DiscoveredDevice> {
+class MockSsdpScanner : DiscoveryStrategy {
+    override val id: String = "ssdp"
+
+    override suspend fun discover(): List<DiscoveryFinding> {
         delay(150)
         return emptyList()
     }
 }
 
-class MockBluetoothScanner : DeviceScanner {
-    override suspend fun discover(): List<DiscoveredDevice> {
+class MockBluetoothScanner : DiscoveryStrategy {
+    override val id: String = "bluetooth"
+
+    override suspend fun discover(): List<DiscoveryFinding> {
         delay(180)
         return listOf(
-            DiscoveredDevice(
-                id = "ble-1",
-                name = "Nearby BLE Dimmer",
-                capabilities = listOf("bluetooth", "fallback"),
+            DiscoveryFinding(
+                device = DiscoveredDevice(
+                    id = "ble-1",
+                    name = "Nearby BLE Dimmer",
+                    pairingCapabilities = setOf(PairingCapability.BLUETOOTH),
+                ),
                 metadata = DiscoveryMetadata(
                     supportsSoftAp = false,
                     supportsBluetoothFallback = true,
